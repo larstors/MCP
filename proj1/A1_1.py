@@ -85,6 +85,7 @@ par, cov = opt.curve_fit(gauss, xdata=x_range, ydata=datahist, p0=(I, sigma_N))
 x_range = np.linspace(min(x_range), max(x_range), 1000)
 
 #plotting hist and gaussian
+fig1 = plt.figure()
 plt.title(r"Histogram of estimators of $\int_0^1 x^4 \mathrm{d}x$ with Gaussian fit")
 plt.grid()
 plt.plot(x_range, gauss(x_range, *par), label="Gaussian fit")
@@ -93,6 +94,7 @@ plt.xlabel(r"$I_N$")
 plt.ylabel(r"Prob. density $P(I_N)$")
 plt.legend()
 #plt.show()
+plt.savefig("histGauss.pdf", dpi=200)
 
 print("Standard error from a) is %f and the error from the Gaussian fit is %f" % (sigma_N, par[1]))
 
@@ -123,9 +125,9 @@ for i in range(1, 5):
     # draw x from the corresponding g
     p = np.asarray(random.choices(x, weights=g(x, i), k=N))
 
-    I_N = V*average(f(p)/g(p, i))
+    I_N = V*average(f(p)/g(p, i), N)
 
-    sigma_N = np.sqrt((V**2*average(f(p)*f(p)/(g(p, i))) - I_N**2)/(N-1))
+    sigma_N = np.sqrt((V**2*average(f(p)*f(p)/(g(p, i)), N) - I_N**2)/(N-1))
     print("We get I_N %f and sigma_N %f for function %d" % (I_N, sigma_N, i))
 
 # maximal number of n
@@ -140,27 +142,23 @@ for j in range(len(n)):
     N = n[j]
     for i in range(1, 5):
         p = np.asarray(random.choices(x, weights=g(x, i), k=N))
-        I_N = average(f(p)/g(p, i))
-        print(np.shape(p), N, I_N)
-        if (average(f(p)*f(p)/(g(p, i))) - I_N**2) < 0:
-            print("-----------------------------")
-            print(N, i, (average(f(p)*f(p)/(g(p, i) * g(p, i))) - I_N**2))
-            print(average(f(p)*f(p)/(g(p, i))), I_N**2)
-        sigma_N = np.sqrt((average(f(p)*f(p)/(g(p, i))) - I_N**2)/(N-1))
+        I_N = average(f(p)/g(p, i), N)
+        sigma_N = np.sqrt((average(f(p)*f(p)/(g(p, i)), N) - I_N**2)/(N-1))
 
         s[i-1, j] = sigma_N
 
 #label
 l = [r"$g(x)=2x$", r"$g(x)=3x^2$",r"$g(x)=4x^3$",r"$g(x)=5x^4$"]
 
+fig2 = plt.figure()
 for i in range(4):
     plt.plot(n, s[i, :], label=l[i])
 plt.yscale("log")
-plt.xlabel("log")
+plt.xscale("log")
 plt.legend()
 plt.grid()
 plt.xlabel(r"$N$")
 plt.ylabel(r"$\sigma_N$")
 plt.title("Standard error for different distributions")
 #plt.show()
-
+plt.savefig("loglog.pdf", dpi=200)
