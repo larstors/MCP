@@ -28,7 +28,7 @@ def f(x):
     """
     return x**4
 
-def average(y):
+def average(y, n=N):
     """function to calculate average
 
     Args:
@@ -37,7 +37,7 @@ def average(y):
     Returns:
         float: average of y
     """
-    return 1/N * np.sum(y)
+    return 1/n * np.sum(y)
 
 # #################### PART A #################
 
@@ -92,7 +92,7 @@ plt.hist(data, bins=Nr_bins, density="True", label=r"$I_N$")
 plt.xlabel(r"$I_N$")
 plt.ylabel(r"Prob. density $P(I_N)$")
 plt.legend()
-plt.show()
+#plt.show()
 
 print("Standard error from a) is %f and the error from the Gaussian fit is %f" % (sigma_N, par[1]))
 
@@ -118,14 +118,49 @@ def g(x, choice):
         return 5*x**4
 
 
-x = np.linspace(0, 1, 1000)
+x = np.linspace(0, 1, 10000)
 for i in range(1, 5):
     # draw x from the corresponding g
-    p = np.asarray(random.choices(x, weights=g(x, i), k=M))
+    p = np.asarray(random.choices(x, weights=g(x, i), k=N))
 
     I_N = V*average(f(p)/g(p, i))
 
-    sigma_N = np.sqrt((V**2*average(f(p)**2/g(p, i)**2) - I_N**2)/(N-1))
+    sigma_N = np.sqrt((V**2*average(f(p)*f(p)/(g(p, i))) - I_N**2)/(N-1))
     print("We get I_N %f and sigma_N %f for function %d" % (I_N, sigma_N, i))
 
-print(np.shape(p))
+# maximal number of n
+maxN = 10
+# matrix with values
+s = np.array([np.zeros(maxN) for i in range(4)])
+n = []
+for i in range(maxN):
+    n.append(int(10*2**(i+1)))
+
+for j in range(len(n)):
+    N = n[j]
+    for i in range(1, 5):
+        p = np.asarray(random.choices(x, weights=g(x, i), k=N))
+        I_N = average(f(p)/g(p, i))
+        print(np.shape(p), N, I_N)
+        if (average(f(p)*f(p)/(g(p, i))) - I_N**2) < 0:
+            print("-----------------------------")
+            print(N, i, (average(f(p)*f(p)/(g(p, i) * g(p, i))) - I_N**2))
+            print(average(f(p)*f(p)/(g(p, i))), I_N**2)
+        sigma_N = np.sqrt((average(f(p)*f(p)/(g(p, i))) - I_N**2)/(N-1))
+
+        s[i-1, j] = sigma_N
+
+#label
+l = [r"$g(x)=2x$", r"$g(x)=3x^2$",r"$g(x)=4x^3$",r"$g(x)=5x^4$"]
+
+for i in range(4):
+    plt.plot(n, s[i, :], label=l[i])
+plt.yscale("log")
+plt.xlabel("log")
+plt.legend()
+plt.grid()
+plt.xlabel(r"$N$")
+plt.ylabel(r"$\sigma_N$")
+plt.title("Standard error for different distributions")
+#plt.show()
+
