@@ -127,7 +127,7 @@ for i in range(1, 5):
 
     I_N = V*average(f(p)/g(p, i), N)
 
-    sigma_N = np.sqrt((V**2*average(f(p)*f(p)/(g(p, i)), N) - I_N**2)/(N-1))
+    sigma_N = np.sqrt((V**2*average(f(p)*f(p)/(g(p, i)**2), N) - I_N**2)/(N-1))
     print("We get I_N %f and sigma_N %f for function %d" % (I_N, sigma_N, i))
 
 # maximal number of n
@@ -143,7 +143,7 @@ for j in range(len(n)):
     for i in range(1, 5):
         p = np.asarray(random.choices(x, weights=g(x, i), k=N))
         I_N = average(f(p)/g(p, i), N)
-        sigma_N = np.sqrt((average(f(p)*f(p)/(g(p, i)), N) - I_N**2)/(N-1))
+        sigma_N = np.sqrt((average(f(p)*f(p)/(g(p, i)**2), N) - I_N**2)/(N-1))
 
         s[i-1, j] = sigma_N
 
