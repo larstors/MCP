@@ -12,10 +12,20 @@ y0 = 0
 ######################### PART A ############################
 
 def update(n=1000):
+    """Calculating the path of random walker
+
+    Args:
+        n (int, optional): Number of steps for the random walker to go. Defaults to 1000.
+
+    Returns:
+        list: Coordinates for each step of random walker
+    """
+    #initialise
     x = []
     y = []
     x.append(x0)
     y.append(y0)
+    # let the walker walk
     for i in range(n):
         dx = np.random.uniform(-1, 1, 1)
         dy = np.random.uniform(-1, 1, 1)
@@ -28,6 +38,14 @@ def update(n=1000):
     return x, y
 
 def coor_last_step(n):
+    """Function to only calculate the coordinates of the last step (this should be more efficient then the one above...)
+
+    Args:
+        n (int): number of steps
+
+    Returns:
+        float: x and y coordinate after the n-th step
+    """
     x = x0
     y = y0
     for i in range(n):
@@ -48,11 +66,11 @@ N = 1000
 
 plt.figure()
 for n in range(4):
+    # get coordinates
     x = update()[0]
     y = update()[1]
-
+    #plot trajectory
     plt.plot(x, y, "-", label="Trajectory %d" % (n+1))
-
 
 plt.legend()
 plt.grid()
@@ -71,6 +89,7 @@ M = 1000
 N = 10000
 
 for i in range(M):
+    # why am I not using the above again?
     x, y = update(N)
     last_coor.append(np.sqrt(x[-1]**2 + y[-1]**2))
 

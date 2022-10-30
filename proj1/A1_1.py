@@ -57,7 +57,7 @@ print("The estimator is %.2f sigma_N away" % distance)
 
 
 # #################### PART B #################
-
+# list for stuff
 data = []
 x_range = []
 
@@ -69,7 +69,6 @@ for i in range(M):
     I_N = V*average(f(x))
     # and the error
     sigma_N = V * np.sqrt((average(f(x)*f(x)) - average(f(x))**2)/(N-1))
-
     data.append(I_N)
 
 # make histogram
@@ -134,14 +133,18 @@ for i in range(1, 5):
 maxN = 10
 # matrix with values
 s = np.array([np.zeros(maxN) for i in range(4)])
+# different number of samples
 n = []
 for i in range(maxN):
     n.append(int(10*2**(i+1)))
 
+# calculate for different sample pool
 for j in range(len(n)):
     N = n[j]
     for i in range(1, 5):
+        # sample from different g(x)
         p = np.asarray(random.choices(x, weights=g(x, i), k=N))
+        #calculate variance and mean
         I_N = average(f(p)/g(p, i), N)
         sigma_N = np.sqrt((average(f(p)*f(p)/(g(p, i)**2), N) - I_N**2)/(N-1))
 
