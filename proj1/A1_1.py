@@ -124,7 +124,7 @@ x = np.linspace(0, 1, 10000)
 for i in range(1, 5):
     # draw x from the corresponding g
     p = np.asarray(random.choices(x, weights=g(x, i), k=N))
-
+    print(np.shape(p))
     I_N = V*average(f(p)/g(p, i), N)
 
     sigma_N = np.sqrt((V**2*average(f(p)*f(p)/(g(p, i)**2), N) - I_N**2)/(N-1))
