@@ -65,7 +65,7 @@ N = 1000
 
 
 plt.figure()
-for n in range(4):
+for n in range(3):
     # get coordinates
     x = update()[0]
     y = update()[1]
@@ -76,7 +76,7 @@ plt.legend()
 plt.grid()
 plt.xlabel("x")
 plt.ylabel("y")
-plt.show()
+plt.savefig("3rw.pdf", dpi=200)
 
 
 # ######################## PART B ###################
@@ -100,6 +100,6 @@ plt.hist(last_coor, 40)
 plt.xlabel(r"$R_N$")
 plt.ylabel(r"Frequency of $R_N$")
 plt.grid()
-plt.show()
+plt.savefig("hist_random_walk.pdf", dpi=200)
 
 print(np.sqrt(1/M*np.sum(last_coor*last_coor)), np.sqrt(N))

@@ -57,31 +57,26 @@ N0 = [10, 100, 1000, 10000, 100000]
 # stuff for plotting
 c = ["red", "blue", "green", "magenta", "cyan"]
 style = ["-", "--", "-.", "-x", "-o"]
-fig1, ax = plt.subplots(nrows=1, ncols=2, figsize=(10, 25))
+fig1, ax = plt.subplots()
 # making curve for each N0
 for n in range(len(N0)):
     t, N = decay(N0[n], l)
     t = np.asarray(t)
     N = np.asarray(N)
     f = 10
-    ax[0].plot(t[::f], cont(t[::f], N0[n], l), style[n], color="black", label=r"$N_\mathrm{cont}$ w. $N(0) = %g$" % N0[n])
-    ax[0].plot(t, N, color=c[n], label=r"Discrete w. $N(0) = %g$" % N0[n])
-    ax[1].plot(cont(t, N0[n], l), np.abs((N - cont(t, N0[n], l))/cont(t, N0[n], l)), color=c[n], label=r"$N(0)=%g$" % N0[n])
+    ax.plot(t[::f], cont(t[::f], N0[n], l), style[n], color="black", label=r"$N_\mathrm{cont}$ w. $N(0) = %g$" % N0[n])
+    ax.plot(t, N, color=c[n], label=r"Discrete w. $N(0) = %g$" % N0[n])
 
-ax[0].set_yscale("log")
-ax[0].axis([-20, max(t)*1.1, .4, max(N0)*2])
-ax[0].set_xlabel(r"$t$ [s]")
-ax[0].set_ylabel(r"$N(t)$")
-ax[0].grid()
-ax[0].legend()
+ax.set_title(r"Decay with rate $\lambda=%.2f\mathrm{s}^{-1}$" % l)
+ax.set_yscale("log")
+ax.axis([-20, max(t)*1.1, .4, max(N0)*2])
+ax.set_xlabel(r"$t$ [s]")
+ax.set_ylabel(r"$N(t)$")
+ax.grid()
+ax.legend()
 
-ax[1].set_yscale("log")
-ax[1].set_xscale("log")
-ax[1].set_xlabel(r"$N_\mathrm{cont.}(t)$")
-ax[1].set_ylabel(r"$|N(t) - N_\mathrm{cont.}(t)|/N_\mathrm{cont.}(t)$")
-ax[1].grid()
-ax[1].legend()
-plt.show()
+
+plt.savefig("decay_low.pdf", dpi=200)
 
 # ####################### PART B ############################
 
@@ -95,15 +90,17 @@ for n in range(len(N0)):
     t = np.asarray(t)
     N = np.asarray(N)
     f = 1
+
     plt.plot(t[::f], cont(t[::f], N0[n], l), style[n], color="black", label=r"$N_\mathrm{cont}$ w. $N(0) = %g$" % N0[n])
     plt.plot(t, N, color=c[n], label=r"Discrete w. $N(0) = %g$" % N0[n])
 
+plt.title(r"Decay with rate $\lambda=%.2f\mathrm{s}^{-1}$" % l)
 plt.yscale("log")
 plt.axis([-1, max(t)*1.1, .4, max(N0)*2])
 plt.xlabel(r"$t$ [s]")
 plt.ylabel(r"$N(t)$")
 plt.grid()
 plt.legend()
-plt.show()
+plt.savefig("decay_high.pdf", dpi=200)
 
 

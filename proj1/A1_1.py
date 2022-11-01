@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import scipy.optimize as opt
 import scipy.stats as st
 import random
+import math
 
 
 
@@ -51,9 +52,9 @@ sigma_Na = V * np.sqrt((average(f(x)*f(x)) - average(f(x))**2)/(N-1))
 # distance between actual value and estimator in units of error
 distance = np.abs(I - I_N)/sigma_Na
 
-print("The actual result is ", 0.2)
-print("Monte-Carlo estimator yields ", I_N, " with a standard error ", sigma_Na)
-print("The estimator is %.2f sigma_N away" % distance)
+print("The analytical result is ", 0.2)
+print("Monte-Carlo estimator yields %.4f with a standard error %.4f" % (I_N, sigma_Na))
+print("The estimator is %.d sigma_N away" % math.ceil(distance))
 
 
 # #################### PART B #################
@@ -95,7 +96,7 @@ plt.legend()
 #plt.show()
 plt.savefig("histGauss.pdf", dpi=200)
 
-print("Standard error from a) is %f and the error from the Gaussian fit is %f" % (sigma_N, par[1]))
+print("Standard error from a) is %.4f and the error from the Gaussian fit is %.4f" % (sigma_Na, par[1]))
 
 # ######################## PART C ##################
 
@@ -119,15 +120,25 @@ def g(x, choice):
         return 5*x**4
 
 
-x = np.linspace(0, 1, 10000)
+def probs(x, choice):
+    if choice == 1:
+        return np.sqrt(x)
+    elif choice == 2:
+        return np.exp(np.log(x)/3)
+    elif choice == 3:
+        return np.exp(np.log(x)/4)
+    elif choice == 4:
+        return np.exp(np.log(x)/5)
+
+x = np.random.uniform(a, b, N)
 for i in range(1, 5):
     # draw x from the corresponding g
-    p = np.asarray(random.choices(x, weights=g(x, i), k=N))
-    print(np.shape(p))
+    #p = np.asarray(random.choices(x, weights=g(x, i), k=N))
+    p = probs(x, i)
     I_N = V*average(f(p)/g(p, i), N)
 
-    sigma_N = np.sqrt((V**2*average(f(p)*f(p)/(g(p, i)**2), N) - I_N**2)/(N-1))
-    print("We get I_N %f and sigma_N %f for function %d" % (I_N, sigma_N, i))
+    sigma_N = V*np.sqrt((average(f(p)*f(p)/(g(p, i)**2), N) - I_N**2)/(N-1))
+    print("We get I_N %f and sigma_N %f for g_%d(x)" % (I_N, sigma_N, i))
 
 # maximal number of n
 maxN = 10
@@ -143,10 +154,11 @@ for j in range(len(n)):
     N = n[j]
     for i in range(1, 5):
         # sample from different g(x)
-        p = np.asarray(random.choices(x, weights=g(x, i), k=N))
+        #p = np.asarray(random.choices(x, weights=g(x, i), k=N))
+        p = probs(x, i)
         #calculate variance and mean
         I_N = average(f(p)/g(p, i), N)
-        sigma_N = np.sqrt((average(f(p)*f(p)/(g(p, i)**2), N) - I_N**2)/(N-1))
+        sigma_N = V*np.sqrt((average(f(p)*f(p)/(g(p, i)**2), N) - I_N**2)/(N-1))
 
         s[i-1, j] = sigma_N
 
@@ -165,3 +177,4 @@ plt.ylabel(r"$\sigma_N$")
 plt.title("Standard error for different distributions")
 #plt.show()
 plt.savefig("loglog.pdf", dpi=200)
+
