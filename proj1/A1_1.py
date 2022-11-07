@@ -157,8 +157,8 @@ for j in range(len(n)):
         #p = np.asarray(random.choices(x, weights=g(x, i), k=N))
         p = probs(x, i)
         #calculate variance and mean
-        I_N = average(f(p)/g(p, i), N)
-        sigma_N = V*np.sqrt((average(f(p)*f(p)/(g(p, i)**2), N) - I_N**2)/(N-1))
+        I_N = average(np.float128(f(p)/g(p, i)), N)
+        sigma_N = V*np.sqrt((average(np.float128(f(p)*f(p)/(g(p, i)**2)), N) - I_N**2)/(N-1))
 
         s[i-1, j] = sigma_N
 
@@ -166,7 +166,7 @@ for j in range(len(n)):
 l = [r"$g(x)=2x$", r"$g(x)=3x^2$",r"$g(x)=4x^3$",r"$g(x)=5x^4$"]
 
 fig2 = plt.figure()
-for i in range(4):
+for i in range(3):
     plt.plot(n, s[i, :], label=l[i])
 plt.yscale("log")
 plt.xscale("log")

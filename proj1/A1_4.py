@@ -64,8 +64,11 @@ for n in range(len(N0)):
     t = np.asarray(t)
     N = np.asarray(N)
     f = 10
-    ax.plot(t[::f], cont(t[::f], N0[n], l), style[n], color="black", label=r"$N_\mathrm{cont}$ w. $N(0) = %g$" % N0[n])
-    ax.plot(t, N, color=c[n], label=r"Discrete w. $N(0) = %g$" % N0[n])
+    ax.plot(t, N, color=c[n], label=r"$N(0) = %g$" % N0[n])
+    if n == len(N0)-1:
+        plt.plot(t[::f], cont(t[::f], N0[n], l), style[2], color="black", label=r"Continuous Model")
+    else:
+        plt.plot(t[::f], cont(t[::f], N0[n], l), style[2], color="black")
 
 ax.set_title(r"Decay with rate $\lambda=%.2f\mathrm{s}^{-1}$" % l)
 ax.set_yscale("log")
@@ -90,9 +93,11 @@ for n in range(len(N0)):
     t = np.asarray(t)
     N = np.asarray(N)
     f = 1
-
-    plt.plot(t[::f], cont(t[::f], N0[n], l), style[n], color="black", label=r"$N_\mathrm{cont}$ w. $N(0) = %g$" % N0[n])
-    plt.plot(t, N, color=c[n], label=r"Discrete w. $N(0) = %g$" % N0[n])
+    plt.plot(t, N, color=c[n], label=r"$N(0) = %g$" % N0[n])
+    if n == len(N0)-1:
+        plt.plot(t[::f], cont(t[::f], N0[n], l), style[2], color="black", label=r"Continuous Model")
+    else:
+        plt.plot(t[::f], cont(t[::f], N0[n], l), style[2], color="black")
 
 plt.title(r"Decay with rate $\lambda=%.2f\mathrm{s}^{-1}$" % l)
 plt.yscale("log")
