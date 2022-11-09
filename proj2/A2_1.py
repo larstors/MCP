@@ -3,10 +3,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.optimize as opt
 
+def magnet(spin):
+    """magnetisation
+
+    Args:
+        spin (array): spin configuration
+
+    Returns:
+        float: magnetisation of spin configuration
+    """
+    return np.sum(spin)
 
 
 
-def dE(spin, i, kbT=1, J=1, N=20):
+def dE(spin, i, kbT=1, J=1, N=20, H=0):
     """Function for energy difference
 
     Args:
@@ -21,10 +31,10 @@ def dE(spin, i, kbT=1, J=1, N=20):
     s = spin[i]
     # energy difference
     E = 2 * s * (spin[(i+1)%N] + spin[(i-1)%N])
-    return np.exp(-E*J/kbT)
+    return E*J + 2*s*H
 
 
-def E(spins, J=1, T=1, N=20):
+def E(spins, J=1, T=1, N=20, H=0):
     """Energy of configuration
 
     Args:
@@ -38,7 +48,7 @@ def E(spins, J=1, T=1, N=20):
     e = 0
     for i in range(N):
         e += spins[i]*spins[(i+1)%N]
-    return -J*e
+    return -J*e -H * np.sum(spins)
 
 
 def run(N=20, L=500, t=1, j=1):
@@ -64,7 +74,7 @@ def run(N=20, L=500, t=1, j=1):
         # what spin flips?
         i = np.random.randint(0, N, 1)
         DE = dE(spins, i, t)
-        A = min(1, DE)
+        A = min(1, np.exp(-DE/t))
         #does spin flip?
         if np.random.rand() < A:
             spins[i] *= -1
@@ -89,7 +99,7 @@ N = 20
 H = 0
 
 # number of spin flips
-L = 500
+L = 5000
 
 
 
@@ -107,7 +117,7 @@ for l in range(L):
     #energy difference
     DE = dE(spins, i, kbT)
     # threshold
-    A = min(1, DE)
+    A = min(1, np.exp(-DE/kbT))
     #does it flip
     if np.random.rand() < A:
         spins[i] *= -1
@@ -128,130 +138,68 @@ plt.ylabel(r"Time $t$")
 plt.savefig("1_1d_ising_evolution.pdf", dpi=200)
 
 
-# # ########################### PART B ################################
+# ########################### PART B ################################
 
-# L = 1000
+L = 5000
 
-# t = np.array([0.1, 1, 10])
-# time = np.arange(0, L+1, 1)
+t = np.array([0.1, 1, 10])
+time = np.arange(0, L+1, 1)
 
-# fig1 = plt.figure()
-# for i in range(3):
-#     plt.plot(time, run(N, L, t[i], 1), label=r"$k_b T = %g$" % t[i])
-# plt.legend()
-# plt.grid()
-# plt.xlabel(r"Time $L$")
-# plt.ylabel(r"$E$")
+fig1 = plt.figure()
+for i in range(3):
+    plt.plot(time, run(N, L, t[i], 1), label=r"$k_b T = %g$" % t[i])
+plt.legend()
+plt.grid()
+plt.xlabel(r"Time $L$")
+plt.ylabel(r"$E$")
 
-# plt.savefig("energyGoBOING.pdf", dpi=200)
+plt.savefig("energyGoBOING.pdf", dpi=200)
 
-# # number of iterations
-# M = 100
+# number of iterations
+M = 100
 
-# meanE = np.array([np.zeros(L+1) for i in range(3)])
-# meanE2 = np.array([np.zeros(L+1) for i in range(3)])
+meanE = np.array([np.zeros(L+1) for i in range(3)])
+meanE2 = np.array([np.zeros(L+1) for i in range(3)])
 
-# var = np.array([np.zeros(L+1) for i in range(3)])
+var = np.array([np.zeros(L+1) for i in range(3)])
 
-# for i in range(3):
-#     kbT = t[i]
-#     for m in range(M):
-#         energy = run(N, L, kbT, 1)
-#         meanE[i] += energy
-#         meanE2[i] += energy ** 2
+for i in range(3):
+    kbT = t[i]
+    for m in range(M):
+        energy = run(N, L, kbT, 1)
+        meanE[i] += energy
+        meanE2[i] += energy ** 2
 
-#     meanE[i] /= M
-#     meanE2[i] /= M
+    meanE[i] /= M
+    meanE2[i] /= M
     
-#     var[i] = np.sqrt((meanE2[i] - meanE[i]**2)/M)
+    var[i] = np.sqrt((meanE2[i] - meanE[i]**2)/M)
 
-# fig2 = plt.figure()
+fig2 = plt.figure()
 
-# for i in range(3):
-#     plt.plot(time, meanE[i], label=r"$\langle E\rangle, k_b T = %g$" % t[i])
-# plt.legend()
-# plt.grid()
-# plt.xlabel(r"Time $L$")
-# plt.ylabel(r"$\langle E\rangle$")
-# plt.savefig("mean_energy.pdf", dpi=200)
+for i in range(3):
+    plt.plot(time, meanE[i], label=r"$\langle E\rangle, k_b T = %g$" % t[i])
+plt.legend()
+plt.grid()
+plt.xlabel(r"Time $L$")
+plt.ylabel(r"$\langle E\rangle$")
+plt.savefig("mean_energy.pdf", dpi=200)
 
-# fig3 = plt.figure()
+fig3 = plt.figure()
 
-# for i in range(3):
-#     plt.plot(time, var[i], label=r"$\sigma_E, k_b T = %g$" % t[i])
-# plt.legend()
-# plt.grid()
-# plt.xlabel(r"Time $L$")
-# plt.ylabel(r"$\sigma_E$")
-# plt.savefig("variance.pdf", dpi=200)
-
-
-# # ############################## PART C #########################
+for i in range(3):
+    plt.plot(time, var[i], label=r"$\sigma_E, k_b T = %g$" % t[i])
+plt.legend()
+plt.grid()
+plt.xlabel(r"Time $L$")
+plt.ylabel(r"$\sigma_E$")
+plt.savefig("variance.pdf", dpi=200)
 
 
-# def run_2(N=20, L=500, t=1, j=1, tburn=1000):
-#     """Run of 1d Ising model modified to equilibrate in the beginning
-#     and we only need average energy, so can change the output
-
-#     Args:
-#         N (int, optional): number of spins. Defaults to 20.
-#         L (int, optional): length of simulation. Defaults to 500.
-#         t (int, optional): value of k_b T. Defaults to 1.
-#         j (int, optional): value of J. Defaults to 1.
-
-#     Returns:
-#         array: energy at each step
-#     """
-#     # for output
-#     energy = 0
-#     check = 0
-#     #spins
-#     spins = np.ones(N)
-#     #let system run
-#     for l in range(L+tburn):
-#         # what spin flips?
-#         i = np.random.randint(0, N, 1)
-#         DE = dE(spins, i, t)
-#         A = min(1, DE)
-#         #does spin flip?
-#         if np.random.rand() < A:
-#             spins[i] *= -1
-
-#         if l > tburn:
-#             check += 1
-#             energy += E(spins, J=j, T=t)
-        
-#     return energy/check
-
-# def analytical(T, J=1):
-#     return -J * np.tanh(J/T)
+# ############################## PART C #########################
 
 
-# T = np.arange(1, 11)
-
-# Energy = np.ones(len(T))
-
-
-# for t in range(len(T)):
-#     for m in range(M):
-#         Energy[t] += run_2(L=1000)
-#     Energy[t] /= M
-
-# fig4 = plt.figure()
-# plt.plot(T, Energy/N, label=r"$\frac{1}{N}\langle E\rangle$")
-# plt.plot(T, analytical(T), label="analytical")
-# plt.legend()
-# plt.grid()
-# plt.xlabel(r"$k_B T$")
-# plt.ylabel(r"$E$")
-# plt.savefig("energy_per_spin.pdf", dpi=200)
-
-
-
-
-# ########################## PART D #########################
-
-def run_3(N=20, L=500, t=1, j=1, tburn=1000):
+def run_2(N=20, L=500, t=1, j=1, tburn=1000):
     """Run of 1d Ising model modified to equilibrate in the beginning
     and we only need average energy, so can change the output
 
@@ -266,7 +214,6 @@ def run_3(N=20, L=500, t=1, j=1, tburn=1000):
     """
     # for output
     energy = 0
-    E2 = 0
     check = 0
     #spins
     spins = np.ones(N)
@@ -275,7 +222,71 @@ def run_3(N=20, L=500, t=1, j=1, tburn=1000):
         # what spin flips?
         i = np.random.randint(0, N, 1)
         DE = dE(spins, i, t)
-        A = min(1, DE)
+        A = min(1, np.exp(-DE/t))
+        #does spin flip?
+        if np.random.rand() < A:
+            spins[i] *= -1
+
+        if l > tburn:
+            check += 1
+            energy += E(spins, J=j, T=t)
+        
+    return energy/check
+
+def analytical(T, J=1):
+    return -J * np.tanh(J/T)
+
+
+T = np.arange(1, 11)
+
+Energy = np.ones(len(T))
+
+
+for t in range(len(T)):
+    for m in range(M):
+        Energy[t] += run_2(L=1000)
+    Energy[t] /= M
+
+fig4 = plt.figure()
+plt.plot(T, Energy/N, label=r"$\frac{1}{N}\langle E\rangle$")
+plt.plot(T, analytical(T), label="analytical")
+plt.legend()
+plt.grid()
+plt.xlabel(r"$k_B T$")
+plt.ylabel(r"$E$")
+plt.savefig("energy_per_spin.pdf", dpi=200)
+
+
+
+
+# ########################## PART D #########################
+
+def run_3(N=20, L=500, t=1, j=1, tburn=1000, H=0):
+    """Run of 1d Ising model modified to equilibrate in the beginning
+    and we only need average energy, so can change the output
+
+    Args:
+        N (int, optional): number of spins. Defaults to 20.
+        L (int, optional): length of simulation. Defaults to 500.
+        t (int, optional): value of k_b T. Defaults to 1.
+        j (int, optional): value of J. Defaults to 1.
+
+    Returns:
+        array: energy at each step
+    """
+    # for output
+    mag = 0
+    energy = 0
+    E2 = 0
+    check = 0
+    #spins
+    spins = np.ones(N)
+    #let system run
+    for l in range(L+tburn):
+        # what spin flips?
+        i = np.random.randint(0, N, 1)
+        DE = dE(spins, i, t, H)
+        A = min(1, np.exp(-DE/t))
         #does spin flip?
         if np.random.rand() < A:
             spins[i] *= -1
@@ -285,8 +296,9 @@ def run_3(N=20, L=500, t=1, j=1, tburn=1000):
             check += 1
             energy += e
             E2 += e**2
+            mag += magnet(spins)
         
-    return energy/check, E2/check
+    return energy/check, E2/check, mag/(check*len(spins))
 
 def heat_cap(T, J=1):
     return (J/T)**2 * 1/(np.cosh(J/T))**2 
@@ -315,3 +327,30 @@ plt.xlabel(r"$k_B T$")
 plt.ylabel(r"$c_V$")
 plt.savefig("heat_cap.pdf", dpi=200)
 
+
+# ############################ PART E ############################
+
+def analytical_m(T, H=1, J=1):
+    return np.exp(J/T) * np.sinh(H/T) / np.sqrt(np.exp(2 * J/T) * np.sinh(H/T)**2 + np.exp(-2*J/T))
+
+h = [0, 0.1, 1, 10]
+
+magnetisation = np.array([np.zeros(len(T)) for i in range(len(h))])
+
+for i in range(len(h)):
+    for t in range(len(T)):
+        for m in range(M):
+            r = run_3(L=1000, H=h[i])[-1]
+            magnetisation[i, t] += r
+        magnetisation[i, t] /= M
+
+
+fig6 = plt.figure()
+for i in range(len(h)):
+    plt.plot(T, magnetisation[i, :], "-", label=r"$m$ sim, $H=%g$" % h[i])
+    plt.plot(T, analytical_m(T, H=h[i]), "x", label=r"analytical, $H=%g$" % h[i])
+plt.legend()
+plt.grid()
+plt.xlabel(r"$k_B T$")
+plt.ylabel(r"$m$")
+plt.savefig("magnet.pdf", dpi=200)
