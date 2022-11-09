@@ -1,4 +1,3 @@
-from statistics import variance
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.optimize as opt
@@ -51,7 +50,8 @@ def E(spins, J=1, T=1, N=20, H=0):
     return -J*e -H * np.sum(spins)
 
 
-def run(N=20, L=500, t=1, j=1):
+
+def run(N=20, L=500, t=1, j=1, H=0):
     """Run of 1d Ising model
 
     Args:
@@ -63,26 +63,61 @@ def run(N=20, L=500, t=1, j=1):
     Returns:
         array: energy at each step
     """
+    beta = 1/t
+    #boltzmann weights - energy difference
+    bw = [np.exp(-beta*2*H), np.exp(-beta *2* H - beta * 4), np.exp(beta *2* H - beta * 4), np.exp(- beta *2* H + beta * 4)]
+
+
     # for output
     energy = np.ones(L+1)
+    magn = np.ones(L+1)
     #spins
     spins = np.ones(N)
     #add initial energy
-    energy[0] = E(spins, J=j, T=t)
+    energy[0] = E(spins, J=j, T=t, H=H, N=N)
+    magn[0] = magnet(spins)
     #let system run
     for l in range(L):
         # what spin flips?
         i = np.random.randint(0, N, 1)
-        DE = dE(spins, i, t)
-        A = min(1, np.exp(-DE/t))
+        DE = dE(spins, i, t, H=H, N=N)
         #does spin flip?
-        if np.random.rand() < A:
-            spins[i] *= -1
 
-        #add energy
-        energy[l+1] = E(spins, J=j, T=t)
+        # figure out what boltzmann weight
+        r = 0
+        if (H == 0):
+            if DE > 0:
+                r = bw[1]
+            else:
+                r = bw[3]
+        else:
+            if DE == 2*H:
+                r = bw[0]
+            elif DE == 2*H + 4:
+                r = bw[1]
+            elif DE == -2*H + 4:
+                r = bw[2]
+            else:
+                r = bw[3]
         
-    return energy
+
+        if DE <= 0:
+            spins[i] *= -1
+            #add energy
+            energy[l+1] = energy[l] + DE
+
+            magn[l+1] = magn[0] + 2*spins[i]
+        elif np.random.rand() < np.exp(-DE/t):
+            spins[i] *= -1
+            #add energy
+            energy[l+1] = energy[l] + DE
+
+            magn[l+1] = magn[0] + 2*spins[i]
+        else:
+            energy[l+1] = energy[l]
+            magn[l+1] = magn[0]
+        
+    return energy, magn
 
 
 
@@ -99,7 +134,8 @@ N = 20
 H = 0
 
 # number of spin flips
-L = 5000
+L = 500
+
 
 
 
@@ -116,12 +152,11 @@ for l in range(L):
     i = np.random.randint(0, N, 1)
     #energy difference
     DE = dE(spins, i, kbT)
-    # threshold
-    A = min(1, np.exp(-DE/kbT))
-    #does it flip
-    if np.random.rand() < A:
+    #does spin flip?
+    if DE <= 0:
         spins[i] *= -1
-
+    elif np.random.rand() < np.exp(-DE/kbT):
+        spins[i] *= -1
     # plotting
     if l % 5 == 0:
         scat = plt.scatter(x=np.arange(1, N+1), y=np.zeros(N)+l, vmin=-1, vmax=1, c=spins+1)
@@ -140,14 +175,14 @@ plt.savefig("1_1d_ising_evolution.pdf", dpi=200)
 
 # ########################### PART B ################################
 
-L = 5000
+L = 2000
 
 t = np.array([0.1, 1, 10])
 time = np.arange(0, L+1, 1)
 
 fig1 = plt.figure()
 for i in range(3):
-    plt.plot(time, run(N, L, t[i], 1), label=r"$k_b T = %g$" % t[i])
+    plt.plot(time, run(N, L, t[i], 1)[0], label=r"$k_b T = %g$" % t[i])
 plt.legend()
 plt.grid()
 plt.xlabel(r"Time $L$")
@@ -166,7 +201,7 @@ var = np.array([np.zeros(L+1) for i in range(3)])
 for i in range(3):
     kbT = t[i]
     for m in range(M):
-        energy = run(N, L, kbT, 1)
+        energy = run(N, L, kbT, 1)[0]
         meanE[i] += energy
         meanE2[i] += energy ** 2
 
@@ -224,8 +259,19 @@ def run_2(N=20, L=500, t=1, j=1, tburn=1000):
         DE = dE(spins, i, t)
         A = min(1, np.exp(-DE/t))
         #does spin flip?
-        if np.random.rand() < A:
+        DE = dE(spins, i, t)
+        #does spin flip?
+        if DE <= 0:
             spins[i] *= -1
+            #add energy
+            energy[l+1] = energy[l] + DE
+        elif np.random.rand() < np.exp(-DE/t):
+            spins[i] *= -1
+            #add energy
+            energy[l+1] = energy[l] + DE
+
+        else:
+            energy[l+1] = energy[l]
 
         if l > tburn:
             check += 1
@@ -240,15 +286,16 @@ def analytical(T, J=1):
 T = np.arange(1, 11)
 
 Energy = np.ones(len(T))
-
+tburn = 1000
+L = 1000
 
 for t in range(len(T)):
     for m in range(M):
-        Energy[t] += run_2(L=1000)
-    Energy[t] /= M
+        Energy[t] += np.sum(run(L=L+tburn)[0][tburn:])/L
+    Energy[t] /= M*N
 
 fig4 = plt.figure()
-plt.plot(T, Energy/N, label=r"$\frac{1}{N}\langle E\rangle$")
+plt.plot(T, Energy, label=r"$\frac{1}{N}\langle E\rangle$")
 plt.plot(T, analytical(T), label="analytical")
 plt.legend()
 plt.grid()
@@ -313,10 +360,12 @@ varE = np.ones(len(T))
 
 for t in range(len(T)):
     for m in range(M):
-        r = run_3(L=1000)
-        Energy[t] += r[0]
-        varE += (r[1] - r[0]**2)
+        r = run(L=L+tburn)
+        Energy[t] += np.mean(r[0][tburn:])
+        varE += np.var(r[0][tburn:])
     varE /= M * N * T[t]**2
+
+
 
 fig5 = plt.figure()
 plt.plot(T, varE, label=r"$c_V$ simulation")
@@ -340,17 +389,36 @@ magnetisation = np.array([np.zeros(len(T)) for i in range(len(h))])
 for i in range(len(h)):
     for t in range(len(T)):
         for m in range(M):
-            r = run_3(L=1000, H=h[i])[-1]
-            magnetisation[i, t] += r
-        magnetisation[i, t] /= M
+            r = run(L=L+tburn, H=h[i])[1]
+            magnetisation[i, t] += np.mean(r[tburn:])
+        magnetisation[i, t] /= M * N
 
 
 fig6 = plt.figure()
-for i in range(len(h)):
+for i in range(0, len(h)//2):
     plt.plot(T, magnetisation[i, :], "-", label=r"$m$ sim, $H=%g$" % h[i])
-    plt.plot(T, analytical_m(T, H=h[i]), "x", label=r"analytical, $H=%g$" % h[i])
+    plt.plot(T, analytical_m(T, H=h[i]), "-x", label=r"analytical, $H=%g$" % h[i])
+plt.legend()
+plt.grid()
+plt.xlabel(r"$k_B T$")
+plt.ylabel(r"$m$")
+plt.savefig("magnet_low.pdf", dpi=200)
+
+
+fig7 = plt.figure()
+for i in range(2, len(h)):
+    plt.plot(T, magnetisation[i, :], "-", label=r"$m$ sim, $H=%g$" % h[i])
+    plt.plot(T, analytical_m(T, H=h[i]), "-x", label=r"analytical, $H=%g$" % h[i])
 plt.legend()
 plt.grid()
 plt.xlabel(r"$k_B T$")
 plt.ylabel(r"$m$")
 plt.savefig("magnet.pdf", dpi=200)
+
+
+r = run(L=L+tburn, H=h[i])[1]
+
+t = np.linspace(0, 100, len(r))
+fig8 = plt.figure()
+plt.plot(t, r)
+plt.savefig("wtf.pdf", dpi=200)
