@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.optimize as opt
+from numba import njit
 
-
+#@njit(fastmath=True, parallel=True)
 def dE(spins, i, j, J=1, N=30):
     """Energy difference in proposed jump
 
@@ -21,6 +22,7 @@ def dE(spins, i, j, J=1, N=30):
 
     return e
 
+#@njit(fastmath=True, parallel=True)
 def E(spins, J=1, N=30):
     """Energy of configuration
 
@@ -39,12 +41,14 @@ def E(spins, J=1, N=30):
             e += spins[i, j] * (spins[(i+1)%N, j] + spins[i, (j+1)%N])
     return -J*e
 
+#@njit(fastmath=True, parallel=True)
 def magnetisation(spins):
-    return np.sum(spins)
+    return sum(spins)
 
+#@njit(fastmath=True, parallel=True)
 def run(n=30, T=1, L=5000):
 
-    lattice = np.array([np.ones(n) for i in range(n)])
+    lattice = np.ones((n, n))
 
     E0 = E(lattice)
     M0 = magnetisation(lattice)
@@ -91,25 +95,28 @@ tburn = 10000
 
 total_time = tburn + 5000
 
-M = 100
+M = 10
 
-T = np.linspace(0.1, 4, 40)
+T = np.linspace(0.1, 4, 50)
 
 magnet = np.zeros(len(T))
 
 for i in range(len(T)):
     t = T[i]
     for m in range(M):
-        magnet[i] += np.mean(np.abs(run(T=t, L=total_time)[1][tburn:]))
+        magnet[i] += np.mean(run(T=t, L=total_time)[1][tburn:])
     magnet[i] /= M * 30 * 30
     print(i)
 
 m_anal = np.vectorize(analytical_m)
 
-plt.plot(T, m_anal(T), "bx", label="Analytical result")
+t = np.linspace(0.1, 4, 100)
+
+plt.plot(t, m_anal(t), "bx", label="Analytical result")
 plt.plot(T, magnet, "-r", label="Simulation")
 plt.xlabel(r"$k_B T$")
 plt.ylabel(r"$m(T)$")
 plt.grid()
 plt.legend()
 plt.savefig("2d_magnetisation.pdf", dpi=200)
+#plt.show()
