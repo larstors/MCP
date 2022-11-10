@@ -106,16 +106,16 @@ def run(N=20, L=500, t=1, j=1, H=0):
             #add energy
             energy[l+1] = energy[l] + DE
 
-            magn[l+1] = magn[0] + 2*spins[i]
+            magn[l+1] = magn[l] + 2*spins[i]
         elif np.random.rand() < np.exp(-DE/t):
             spins[i] *= -1
             #add energy
             energy[l+1] = energy[l] + DE
 
-            magn[l+1] = magn[0] + 2*spins[i]
+            magn[l+1] = magn[l] + 2*spins[i]
         else:
             energy[l+1] = energy[l]
-            magn[l+1] = magn[0]
+            magn[l+1] = magn[l]
         
     return energy, magn
 
@@ -159,7 +159,7 @@ for l in range(L):
         spins[i] *= -1
     # plotting
     if l % 5 == 0:
-        scat = plt.scatter(x=np.arange(1, N+1), y=np.zeros(N)+l, vmin=-1, vmax=1, c=spins+1)
+        scat = plt.scatter(x=np.arange(1, N+1), y=np.zeros(N)+l, vmin=0, vmax=2, c=spins+1)
         
 
 
@@ -234,51 +234,6 @@ plt.savefig("variance.pdf", dpi=200)
 # ############################## PART C #########################
 
 
-def run_2(N=20, L=500, t=1, j=1, tburn=1000):
-    """Run of 1d Ising model modified to equilibrate in the beginning
-    and we only need average energy, so can change the output
-
-    Args:
-        N (int, optional): number of spins. Defaults to 20.
-        L (int, optional): length of simulation. Defaults to 500.
-        t (int, optional): value of k_b T. Defaults to 1.
-        j (int, optional): value of J. Defaults to 1.
-
-    Returns:
-        array: energy at each step
-    """
-    # for output
-    energy = 0
-    check = 0
-    #spins
-    spins = np.ones(N)
-    #let system run
-    for l in range(L+tburn):
-        # what spin flips?
-        i = np.random.randint(0, N, 1)
-        DE = dE(spins, i, t)
-        A = min(1, np.exp(-DE/t))
-        #does spin flip?
-        DE = dE(spins, i, t)
-        #does spin flip?
-        if DE <= 0:
-            spins[i] *= -1
-            #add energy
-            energy[l+1] = energy[l] + DE
-        elif np.random.rand() < np.exp(-DE/t):
-            spins[i] *= -1
-            #add energy
-            energy[l+1] = energy[l] + DE
-
-        else:
-            energy[l+1] = energy[l]
-
-        if l > tburn:
-            check += 1
-            energy += E(spins, J=j, T=t)
-        
-    return energy/check
-
 def analytical(T, J=1):
     return -J * np.tanh(J/T)
 
@@ -291,7 +246,7 @@ L = 1000
 
 for t in range(len(T)):
     for m in range(M):
-        Energy[t] += np.sum(run(L=L+tburn)[0][tburn:])/L
+        Energy[t] += np.mean(run(L=L+tburn)[0][tburn:])
     Energy[t] /= M*N
 
 fig4 = plt.figure()
@@ -308,62 +263,26 @@ plt.savefig("energy_per_spin.pdf", dpi=200)
 
 # ########################## PART D #########################
 
-def run_3(N=20, L=500, t=1, j=1, tburn=1000, H=0):
-    """Run of 1d Ising model modified to equilibrate in the beginning
-    and we only need average energy, so can change the output
-
-    Args:
-        N (int, optional): number of spins. Defaults to 20.
-        L (int, optional): length of simulation. Defaults to 500.
-        t (int, optional): value of k_b T. Defaults to 1.
-        j (int, optional): value of J. Defaults to 1.
-
-    Returns:
-        array: energy at each step
-    """
-    # for output
-    mag = 0
-    energy = 0
-    E2 = 0
-    check = 0
-    #spins
-    spins = np.ones(N)
-    #let system run
-    for l in range(L+tburn):
-        # what spin flips?
-        i = np.random.randint(0, N, 1)
-        DE = dE(spins, i, t, H)
-        A = min(1, np.exp(-DE/t))
-        #does spin flip?
-        if np.random.rand() < A:
-            spins[i] *= -1
-
-        if l > tburn:
-            e = E(spins, J=j, T=t)
-            check += 1
-            energy += e
-            E2 += e**2
-            mag += magnet(spins)
-        
-    return energy/check, E2/check, mag/(check*len(spins))
-
 def heat_cap(T, J=1):
     return (J/T)**2 * 1/(np.cosh(J/T))**2 
 
+#Numbers of iteration
 M = 100
+# Temperature range
 T = np.arange(1, 11)
 
-Energy = np.ones(len(T))
 
-meanE = np.ones(len(T))
+# for plotting
+# Energy = np.ones(len(T))
+# meanE = np.ones(len(T))
 varE = np.ones(len(T))
 
 for t in range(len(T)):
     for m in range(M):
         r = run(L=L+tburn)
-        Energy[t] += np.mean(r[0][tburn:])
-        varE += np.var(r[0][tburn:])
-    varE /= M * N * T[t]**2
+        #Energy[t] += np.mean(r[0][tburn:])
+        varE[t] += np.var(r[0][tburn:])
+    varE[t] /= M * N * T[t]**2
 
 
 
