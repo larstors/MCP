@@ -43,7 +43,7 @@ def E(spins, J=1, N=30):
 
 #@njit(fastmath=True, parallel=True)
 def magnetisation(spins):
-    return sum(spins)
+    return np.sum(spins)
 
 #@njit(fastmath=True, parallel=True)
 def run(n=30, T=1, L=5000):
@@ -95,7 +95,7 @@ tburn = 10000
 
 total_time = tburn + 5000
 
-M = 10
+M = 100
 
 T = np.linspace(0.1, 4, 50)
 
