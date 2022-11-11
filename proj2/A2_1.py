@@ -2,6 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.optimize as opt
 
+# TODO add parallelisation to the for loops 
+# TODO vectorise functions -> optimise code
+
+
+
 def magnet(spin):
     """magnetisation
 
@@ -50,7 +55,7 @@ def E(spins, J=1, T=1, N=20, H=0):
     return -J*e -H * np.sum(spins)
 
 
-
+#@njit()
 def run(N=20, L=500, t=1, j=1, H=0):
     """Run of 1d Ising model
 
@@ -119,7 +124,15 @@ def run(N=20, L=500, t=1, j=1, H=0):
         
     return energy, magn
 
+def analytical(T, J=1):
+    return -J * np.tanh(J/T)
 
+
+def heat_cap(T, J=1):
+    return (J/T)**2 * 1/(np.cosh(J/T))**2 
+
+def analytical_m(T, H=1, J=1):
+    return np.exp(J/T) * np.sinh(H/T) / np.sqrt(np.exp(2 * J/T) * np.sinh(H/T)**2 + np.exp(-2*J/T))
 
 
 
@@ -166,8 +179,8 @@ for l in range(L):
 lab = [r"$s_i=-1$", r"$s_i=1$"]
 hand = scat.legend_elements()[0]
 legend1=plt.legend(handles=hand, labels=lab, framealpha=1, loc="lower right")
-plt.xlabel("Index on chain")
-plt.ylabel(r"Time $t$")
+plt.xlabel("Position on chain")
+plt.ylabel(r"Time $L$")
 
 
 plt.savefig("1_1d_ising_evolution.pdf", dpi=200)
@@ -198,6 +211,7 @@ meanE2 = np.array([np.zeros(L+1) for i in range(3)])
 
 var = np.array([np.zeros(L+1) for i in range(3)])
 
+#! very inefficient way of doing this -> Note to self: parallel my dude
 for i in range(3):
     kbT = t[i]
     for m in range(M):
@@ -232,30 +246,27 @@ plt.savefig("variance.pdf", dpi=200)
 
 
 # ############################## PART C #########################
-
-
-def analytical(T, J=1):
-    return -J * np.tanh(J/T)
+tburn = 1000
 
 
 T = np.arange(1, 11)
-
-Energy = np.ones(len(T))
-tburn = 1000
+Energy = np.zeros(len(T))
 L = 1000
+
+#! very inefficient way of doing this -> Note to self: parallel my dude
 
 for t in range(len(T)):
     for m in range(M):
-        Energy[t] += np.mean(run(L=L+tburn)[0][tburn:])
-    Energy[t] /= M*N
+        Energy[t] += np.mean(run(L=L+tburn, t=T[t])[0][tburn:])
+    Energy[t] /= N*M
 
 fig4 = plt.figure()
-plt.plot(T, Energy, label=r"$\frac{1}{N}\langle E\rangle$")
-plt.plot(T, analytical(T), label="analytical")
+plt.plot(T, Energy, "-xr", label=r"$\frac{1}{N}\langle E\rangle$")
+plt.plot(T, analytical(T), "--b", label="analytical")
 plt.legend()
 plt.grid()
 plt.xlabel(r"$k_B T$")
-plt.ylabel(r"$E$")
+plt.ylabel(r"$E/J$")
 plt.savefig("energy_per_spin.pdf", dpi=200)
 
 
@@ -263,8 +274,6 @@ plt.savefig("energy_per_spin.pdf", dpi=200)
 
 # ########################## PART D #########################
 
-def heat_cap(T, J=1):
-    return (J/T)**2 * 1/(np.cosh(J/T))**2 
 
 #Numbers of iteration
 M = 100
@@ -277,9 +286,11 @@ T = np.arange(1, 11)
 # meanE = np.ones(len(T))
 varE = np.ones(len(T))
 
+#! very inefficient way of doing this -> Note to self: parallel my dude
+
 for t in range(len(T)):
     for m in range(M):
-        r = run(L=L+tburn)
+        r = run(L=L+tburn, t=T[t])
         #Energy[t] += np.mean(r[0][tburn:])
         varE[t] += np.var(r[0][tburn:])
     varE[t] /= M * N * T[t]**2
@@ -287,8 +298,8 @@ for t in range(len(T)):
 
 
 fig5 = plt.figure()
-plt.plot(T, varE, label=r"$c_V$ simulation")
-plt.plot(T, heat_cap(T), label="analytical")
+plt.plot(T, varE, "-xr", label=r"$c_V$ simulation")
+plt.plot(T, heat_cap(T), "--b", label="analytical")
 plt.legend()
 plt.grid()
 plt.xlabel(r"$k_B T$")
@@ -298,25 +309,25 @@ plt.savefig("heat_cap.pdf", dpi=200)
 
 # ############################ PART E ############################
 
-def analytical_m(T, H=1, J=1):
-    return np.exp(J/T) * np.sinh(H/T) / np.sqrt(np.exp(2 * J/T) * np.sinh(H/T)**2 + np.exp(-2*J/T))
 
 h = [0, 0.1, 1, 10]
 
 magnetisation = np.array([np.zeros(len(T)) for i in range(len(h))])
 
+#! very inefficient way of doing this -> Note to self: parallel my dude
+
 for i in range(len(h)):
     for t in range(len(T)):
         for m in range(M):
-            r = run(L=L+tburn, H=h[i])[1]
+            r = run(L=L+tburn, t=T[t], H=h[i])[1]
             magnetisation[i, t] += np.mean(r[tburn:])
         magnetisation[i, t] /= M * N
 
 
 fig6 = plt.figure()
 for i in range(0, len(h)//2):
-    plt.plot(T, magnetisation[i, :], "-", label=r"$m$ sim, $H=%g$" % h[i])
-    plt.plot(T, analytical_m(T, H=h[i]), "-x", label=r"analytical, $H=%g$" % h[i])
+    plt.plot(T, magnetisation[i, :], "-x", label=r"$m$ sim, $H=%g$" % h[i])
+    plt.plot(T, analytical_m(T, H=h[i]), "--", label=r"analytical, $H=%g$" % h[i])
 plt.legend()
 plt.grid()
 plt.xlabel(r"$k_B T$")
@@ -326,18 +337,10 @@ plt.savefig("magnet_low.pdf", dpi=200)
 
 fig7 = plt.figure()
 for i in range(2, len(h)):
-    plt.plot(T, magnetisation[i, :], "-", label=r"$m$ sim, $H=%g$" % h[i])
-    plt.plot(T, analytical_m(T, H=h[i]), "-x", label=r"analytical, $H=%g$" % h[i])
+    plt.plot(T, magnetisation[i, :], "-x", label=r"$m$ sim, $H=%g$" % h[i])
+    plt.plot(T, analytical_m(T, H=h[i]), "--", label=r"analytical, $H=%g$" % h[i])
 plt.legend()
 plt.grid()
 plt.xlabel(r"$k_B T$")
 plt.ylabel(r"$m$")
 plt.savefig("magnet.pdf", dpi=200)
-
-
-r = run(L=L+tburn, H=h[i])[1]
-
-t = np.linspace(0, 100, len(r))
-fig8 = plt.figure()
-plt.plot(t, r)
-plt.savefig("wtf.pdf", dpi=200)

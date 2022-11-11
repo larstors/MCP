@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.optimize as opt
 from numba import njit
+from joblib import Parallel, delayed
 
 #@njit(fastmath=True, parallel=True)
 def dE(spins, i, j, J=1, N=30):
@@ -46,7 +47,7 @@ def magnetisation(spins):
     return np.sum(spins)
 
 #@njit(fastmath=True, parallel=True)
-def run(n=30, T=1, L=5000):
+def run(n=30, T=1, L=5000, l=1):
 
     lattice = np.ones((n, n))
 
@@ -81,7 +82,7 @@ def run(n=30, T=1, L=5000):
         #     plt.scatter(x=np.array([np.arange(0, n) for i in range(n)]), y=np.array([np.arange(0, n) for i in range(n)]).T, vmin=0, vmax=2, c=lattice+1)
         #     plt.show()
     
-    return Energy, M
+    return np.mean(M) #Energy, M
 
 def analytical_m(T, Tc=2 / np.log(1 + np.sqrt(2)), J=1):
     z = np.exp(-2*J/T)
@@ -90,28 +91,38 @@ def analytical_m(T, Tc=2 / np.log(1 + np.sqrt(2)), J=1):
     else:
         return 0
 
+#nr of spins    
+N = 30
+
 #burn in
 tburn = 10000
 
-total_time = tburn + 5000
+total_time = tburn + 2000
 
 M = 100
 
-T = np.linspace(0.1, 4, 50)
+T = np.linspace(1, 3, 40)
 
 magnet = np.zeros(len(T))
 
+# for i in range(len(T)):
+#     t = T[i]
+#     for m in range(M):
+#         magnet[i] += np.mean(run(T=t, L=total_time)[1][tburn:])
+#     magnet[i] /= M * 30 * 30
+#     print(i)
+
+
+magnet_per_spin = Parallel(n_jobs=5)(delayed(run)(T=t, L=total_time, l=m, n=N) for t in T for m in range(M))
+
 for i in range(len(T)):
-    t = T[i]
-    for m in range(M):
-        magnet[i] += np.mean(run(T=t, L=total_time)[1][tburn:])
-    magnet[i] /= M * 30 * 30
-    print(i)
+    magnet[i] = np.mean(magnet_per_spin[i:i+M])/(N**2)
 
 m_anal = np.vectorize(analytical_m)
 
-t = np.linspace(0.1, 4, 100)
+t = np.linspace(1, 3, 100)
 
+plt.title(r"Magnetisation per spin for $%d$x$%d$ spins" % (N, N))
 plt.plot(t, m_anal(t), "bx", label="Analytical result")
 plt.plot(T, magnet, "-r", label="Simulation")
 plt.xlabel(r"$k_B T$")
