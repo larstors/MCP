@@ -81,7 +81,6 @@ def run(n=30, T=1, L=5000, l=1):
         # if i == 0 or i == L-1:
         #     plt.scatter(x=np.array([np.arange(0, n) for i in range(n)]), y=np.array([np.arange(0, n) for i in range(n)]).T, vmin=0, vmax=2, c=lattice+1)
         #     plt.show()
-    
     return np.mean(M) #Energy, M
 
 def analytical_m(T, Tc=2 / np.log(1 + np.sqrt(2)), J=1):
@@ -97,26 +96,20 @@ N = 30
 #burn in
 tburn = 10000
 
-total_time = tburn + 2000
+total_time = tburn + 10000
 
-M = 100
+M = 1000
 
 T = np.linspace(1, 3, 40)
 
 magnet = np.zeros(len(T))
 
-# for i in range(len(T)):
-#     t = T[i]
-#     for m in range(M):
-#         magnet[i] += np.mean(run(T=t, L=total_time)[1][tburn:])
-#     magnet[i] /= M * 30 * 30
-#     print(i)
 
 
 magnet_per_spin = Parallel(n_jobs=5)(delayed(run)(T=t, L=total_time, l=m, n=N) for t in T for m in range(M))
 
 for i in range(len(T)):
-    magnet[i] = np.mean(magnet_per_spin[i:i+M])/(N**2)
+    magnet[i] = np.mean(magnet_per_spin[i*M:i*M+M])/(N**2)
 
 m_anal = np.vectorize(analytical_m)
 
