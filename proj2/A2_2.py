@@ -4,7 +4,7 @@ import scipy.optimize as opt
 from numba import njit
 from joblib import Parallel, delayed
 
-#@njit(fastmath=True, parallel=True)
+#@njit
 def dE(spins, i, j, J=1, N=30):
     """Energy difference in proposed jump
 
@@ -23,7 +23,7 @@ def dE(spins, i, j, J=1, N=30):
 
     return e
 
-#@njit(fastmath=True, parallel=True)
+#@njit
 def E(spins, J=1, N=30):
     """Energy of configuration
 
@@ -42,11 +42,11 @@ def E(spins, J=1, N=30):
             e += spins[i, j] * (spins[(i+1)%N, j] + spins[i, (j+1)%N])
     return -J*e
 
-#@njit(fastmath=True, parallel=True)
+#@njit
 def magnetisation(spins):
     return np.sum(spins)
 
-#@njit(fastmath=True, parallel=True)
+#@njit
 def run(n=30, T=1, L=5000, l=1):
 
     lattice = np.ones((n, n))
@@ -94,11 +94,11 @@ def analytical_m(T, Tc=2 / np.log(1 + np.sqrt(2)), J=1):
 N = 30
 
 #burn in
-tburn = 10000
+tburn = 1000000
 
-total_time = tburn + 10000
+total_time = tburn + 1000000
 
-M = 1000
+M = 100
 
 T = np.linspace(1, 3, 40)
 
@@ -106,7 +106,7 @@ magnet = np.zeros(len(T))
 
 
 
-magnet_per_spin = Parallel(n_jobs=5)(delayed(run)(T=t, L=total_time, l=m, n=N) for t in T for m in range(M))
+magnet_per_spin = Parallel(n_jobs=6)(delayed(run)(T=t, L=total_time, l=m, n=N) for t in T for m in range(M))
 
 for i in range(len(T)):
     magnet[i] = np.mean(magnet_per_spin[i*M:i*M+M])/(N**2)
