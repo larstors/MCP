@@ -48,6 +48,12 @@ class MD {
     Engine& rng; // Source of noise: this is a reference as there should only be one of these!
     std::normal_distribution<double> maxwell;
 
+    /**
+     * @brief Force on each particle in each coordinate using Lenard-Jones potential (could probs move this into 
+     *        public as it doesnt really need to stay private, no?)
+     * 
+     * @return vecd 
+     */
     vecd force(){
         // vector with force for each particle and each component
         vecd f(P.N * 3);
@@ -56,6 +62,42 @@ class MD {
 
         return f;
     }
+
+    /**
+     * @brief calculate the distance between two points for arbitrary boundary combinations
+     * 
+     * @param p1 
+     * @param p2 
+     * @param n 
+     * @return double 
+     */
+    double distance(vecd p1, vecd p2, vec n){
+        // distance variable
+        double dist = 0;
+
+        for (int i = 0; i < 3; i++){
+            dist = pow(p1[i] - p2[i] - n[i] * P.L[i], 2);
+        }
+
+        return dist;
+    }
+
+    vecd minimal_distance(){
+        vecd output;
+
+        // loop over output for particles
+        for (int i = 0; i < P.N; i++){
+            // loop over all particles
+            for (int j = 0; j < P.N; j++){
+                // only want difference between different particles
+                if (i != j){
+                    
+                }
+            }
+        }
+    }
+
+
 
     public:
         // initialisation of needed quantities
@@ -93,7 +135,16 @@ class MD {
                 }
             }
             
-
+            // just testing some stuff
+            ofstream outfile;
+            outfile.open("test.txt");
+            for (unsigned i = 0; i < P.N; i++){
+                for (unsigned k = 0; k < 3; k++){
+                    outfile << past[i].momentum[k] << " ";
+                    if (k == 2) outfile << endl;
+                }
+            }
+            outfile.close();
         }
 
         /**
@@ -121,7 +172,6 @@ class MD {
                 // update the "future"
                 for (unsigned i = 0; i < P.N; i++){
                     for (unsigned k = 0; k < 3; k++){
-
                         // next position
                         future[i].position[k] = 2*present[i].position[k] - past[i].position[k] + h*h * F[3*i + k];
                         // we have to calculate the new velocity before applying boundary conditions -> otherwise
@@ -135,18 +185,41 @@ class MD {
                         past[i].position[k] = present[i].position[k];
                         present[i].position[k] = future[i].position[k];
 
-
-
                     }
                 }
+                
+                // calculating the wanted stuff after equilibrating the system
+                if (n * h > tburn){
 
+                }
             }
 
 
 
+
+            return present[0].position;
         }
 
+        /**
+         * @brief function to calculate the average kinetic energy per particle
+         * 
+         * @param particles vector of all particles
+         * @return double kinetic energy per particle
+         */
+        double energy_per_particle(){
+            // total kinetic energy
+            double T = 0;
 
+            // calculating total energy
+            for (int i = 0; i < present.size(); i++){
+                for (int j = 0; j < 3; j++){
+                    T += present[i].momentum[j] * present[i].momentum[j];
+                }
+                
+            }
+
+            return T / double(2 * P.mass * present.size());
+        }
 
 
 
