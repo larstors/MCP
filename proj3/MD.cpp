@@ -109,17 +109,49 @@ class MD {
         rng(rng),
         maxwell(0, sqrt(kb * P.T0 / P.mass))
         {   
-            
+            assert(P.N/4==0);
+
+            int M3 = P.N/4;
+            double M = pow(M3, 1.0/3.0);
             // to achieve p_tot = 0 we need a vector for the mean
             vecd mean_momentum {0, 0, 0};
             // initialise the position and momentum of each particle drawn from random distributions
             for (unsigned i = 0; i < P.N; i++){
                 for (unsigned k = 0; k < 3; k++){
-                    // draw position and momentum from uniform continuous and normal distribution, respectively
+                    // draw momentum from normal distribution, respectively
                     past[i].momentum[k] = maxwell(rng);
-                    past[i].position[k] = uniform_real_distribution<double> (0, P.L[k])(rng);
                     // add the momentum to the total, i.e. mean, momentum
                     mean_momentum[k] += past[i].momentum[k];
+                }
+            }
+
+            // placing particles on fcc lattice structure
+
+            double a = double(P.L[0]) / double(M);
+
+            cout << a << " can fit " << double(P.L[0]) / a << endl;
+
+            // for z coordinate
+            for (int j = 0; j < 12; j++){
+                // for y
+                for (int k = 0; k < 12; k++){
+                    // for x
+                    for (int l = 0; l < 6; l++){
+                        
+                        
+                        past[72*j + 6*k + l].position[2] = 1e-10 + j/2 * a + j%2*a/2;// z coordinate
+                        if (j%2 == 0){
+                            past[72*j + 6*k + l].position[0] = 1e-10 + ((0+2)/2)%2*(l * a + k%2 * a/2) + 0%2*(a/2 - k%2*a);// x coordinate
+                            past[72*j + 6*k + l].position[1] = 1e-10 + ((0+2)/2)%2*(k/2 * a + k%2*a/2);// y coordinate
+                        }
+                        else {
+                            past[72*j + 6*k + l].position[0] = 1e-10 + ((1+2)/2)%2*(l * a + k%2 * a/2) + 1%2*(a/2 - k%2*a);// x coordinate
+                            past[72*j + 6*k + l].position[1] = 1e-10 + ((1+2)/2)%2*(k/2 * a + k%2*a/2);// y coordinate
+                        }
+                        if (l == 1 && k == 0 && j == 1){
+                            cout << past[72*j + 6*k + l].position[0] << endl;
+                        }
+                    }
                 }
             }
 
@@ -140,7 +172,7 @@ class MD {
             outfile.open("test.txt");
             for (unsigned i = 0; i < P.N; i++){
                 for (unsigned k = 0; k < 3; k++){
-                    outfile << past[i].momentum[k] << " ";
+                    outfile << past[i].position[k] << " ";
                     if (k == 2) outfile << endl;
                 }
             }
@@ -194,10 +226,11 @@ class MD {
                 }
             }
 
-
-
-
             return present[0].position;
+        }
+
+        vecd velocity_verlet(double t, double tburn, double h){
+
         }
 
         /**
@@ -247,11 +280,12 @@ int main(int argc, char* argv[]){
     std::string output = "";
     std::string method = ""; 
     double burnin = 1000, until = 5000, every = 2.5;
+    double rho = 0.55;
 
 
     app.add_option("-o, --output", output, "Output type");
     app.add_option("-M, --method", method, "method used");
-
+    app.add_option("-r, --density", rho, "density of system");
     app.add_option("-b,--burnin",        burnin,        "Time to run before starting measurements");
     app.add_option("-u,--until",         until,         "Time to run for once measurements started");
     app.add_option("-e,--every",         every,         "Measurement interval");
@@ -260,7 +294,8 @@ int main(int argc, char* argv[]){
 
     std::mt19937 rng((std::random_device())());
 
-
+    // assuming cube box we get
+    P.L[0] = P.L[1] = P.L[2] = int(pow(double(P.N)/rho, 1.0/3.0));
 
     MD md(P, rng);
 
