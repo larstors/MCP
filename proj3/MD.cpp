@@ -31,7 +31,7 @@ template<typename Engine> class ClusterWriter;
 
 
 struct Parameters {
-    double      mass = 1.0;     // assuming the particles have the same mass
+    double      mass = 48.0;     // assuming the particles have the same mass
     vec         L {10, 20, 30}; // dimensions of box
     double      T0 = 1;         // initial temperature
     int    N = 100;             // number of particles
@@ -68,27 +68,45 @@ class MD {
         // vector with force for each particle and each component
         vecd f(P.N * 3);
         if (o == 0){
-            vecd dist = minimal_distance();
+            //vecd dist = minimal_distance();
             // loop over output for particles
             for (int i = 0; i < P.N; i++){
                 // loop over all particles
                 for (int j = 0; j < P.N; j++){
                     if (j > i){
-                        // only want difference between different particles
+                        // calculating optimal position for image
                         vecd new_r (3);
+
+                        int l = 0;
                         for (int k = 0; k < 3; k++){
-                            if (fabs(future[i].position[k] - future[j].position[k]) < double(P.L[0]) / 2){
+                            new_r[k] = future[j].position[k];
+                            if (fabs(future[i].position[k] - future[j].position[k]) < double(P.L[0]) / 2.0){
                                 new_r[k] = future[j].position[k];
+                                l = 1;
                             }
-                            else if (future[i].position[k] - future[j].position[k] > double(P.L[0]) / 2){
-                                new_r[k] = future[j].position[k] - P.L[0];
-                            }
-                            else if (future[i].position[k] - future[j].position[k] < double(P.L[0]) / 2){
+                            else if (future[i].position[k] - future[j].position[k] > double(P.L[0]) / 2.0){
                                 new_r[k] = future[j].position[k] + P.L[0];
+                                l = 2;
                             }
-                            if (dist[P.N*i + j] > 1e-5 && dist[P.N*i + j] < 2.5){
-                                f[3*i + k] += (1 / pow(dist[P.N*i + j], 14) - 0.5 / pow(dist[P.N*i + j], 8)) * (future[i].position[k] - new_r[k]);
-                                f[3*j + k] -= (1 / pow(dist[P.N*i + j], 14) - 0.5 / pow(dist[P.N*i + j], 8)) * (future[i].position[k] - new_r[k]);
+                            else if (future[i].position[k] - future[j].position[k] < - double(P.L[0]) / 2.0){
+                                new_r[k] = future[j].position[k] - P.L[0];
+                                l = 3;
+                            }
+                            //cout << l  << " " << future[i].position[k] - new_r[k] << " " << future[i].position[k] - future[j].position[k] << " " << P.L[0] * 0.5 << endl;
+                            assert(fabs(future[i].position[k] - new_r[k]) <= P.L[0] * 0.5);
+                            
+                        }
+                        
+                        double dist = distance(future[i].position, new_r);
+                        //cout << i << " " << j << endl;
+                        //for (int k = 0; k < 3; k++) cout << past[i].position[k] << " " << past[j].position[k] << endl;
+                        assert(dist > 0);
+                        for (int k = 0; k < 3; k++){
+                            if (dist < 2.5){
+                                f[3*i + k] += 48.0*(1 * pow(dist, -14) - 0.5 * pow(dist, -8)) * (future[i].position[k] - new_r[k]);
+                                f[3*j + k] -= 48.0*(1 * pow(dist, -14) - 0.5 * pow(dist, -8)) * (future[i].position[k] - new_r[k]);
+                                assert(isnan(f[3*j + k]) == false);
+                                assert(isnan(f[3*i + k]) == false);
                             }
                         }
                         
@@ -102,22 +120,30 @@ class MD {
                 // loop over all particles
                 for (int j = i+1; j < P.N; j++){
                     if (future[i].neigh[j] != 0){
-                        // only want difference between different particles
+
                         vecd new_r (3);
+                        
+                        // calculating optimal position for image
                         for (int k = 0; k < 3; k++){
-                            if (fabs(future[i].position[k] - future[j].position[k]) < double(P.L[0]) / 2){
+                            new_r[k] = future[j].position[k];
+                            if (fabs(future[i].position[k] - future[j].position[k]) < double(P.L[0]) / 2.0){
                                 new_r[k] = future[j].position[k];
                             }
-                            else if (future[i].position[k] - future[j].position[k] > double(P.L[0]) / 2){
-                                new_r[k] = future[j].position[k] - P.L[0];
-                            }
-                            else if (future[i].position[k] - future[j].position[k] < double(P.L[0]) / 2){
+                            else if (future[i].position[k] - future[j].position[k] > double(P.L[0]) / 2.0){
                                 new_r[k] = future[j].position[k] + P.L[0];
                             }
-                            double dist = distance(future[i].position, new_r);
-                            if (dist > 1e-5 && dist < 2.5){
-                                f[3*i + k] += (1 / pow(dist, 14) - 0.5 / pow(dist, 8)) * (future[i].position[k] - new_r[k]);
-                                f[3*j + k] -= (1 / pow(dist, 14) - 0.5 / pow(dist, 8)) * (future[i].position[k] - new_r[k]);
+                            else if (future[i].position[k] - future[j].position[k] < - double(P.L[0]) / 2.0){
+                                new_r[k] = future[j].position[k] - P.L[0];
+                            }
+                            assert(fabs(future[i].position[k] - new_r[k]) <= P.L[0] * 0.5);
+                        }
+                        double dist = distance(future[i].position, new_r);
+                        for (int k = 0; k < 3; k++){
+                            if (dist < 2.5){
+                                f[3*i + k] += 48.0*(1 / pow(dist, 14) - 0.5 / pow(dist, 8)) * (future[i].position[k] - new_r[k]);
+                                f[3*j + k] -= 48.0*(1 / pow(dist, 14) - 0.5 / pow(dist, 8)) * (future[i].position[k] - new_r[k]);
+                                assert(isnan(f[3*j + k]) == false);
+                                assert(isnan(f[3*i + k]) == false);
                             }
                         }
                         
@@ -222,15 +248,16 @@ class MD {
                     // only want difference between different particles
                     vecd new_r (3);
                     for (int k = 0; k < 3; k++){
-                        if (fabs(future[i].position[k] - future[j].position[k]) < double(P.L[0]) / 2){
+                        if (fabs(future[i].position[k] - future[j].position[k]) < double(P.L[0]) / 2.0){
                             new_r[k] = future[j].position[k];
                         }
-                        else if (future[i].position[k] - future[j].position[k] > double(P.L[0]) / 2){
+                        else if (future[i].position[k] - future[j].position[k] > double(P.L[0]) / 2.0){
                             new_r[k] = future[j].position[k] + P.L[0];
                         }
-                        else if (future[i].position[k] - future[j].position[k] < - double(P.L[0]) / 2){
+                        else if (future[i].position[k] - future[j].position[k] < - double(P.L[0]) / 2.0){
                             new_r[k] = future[j].position[k] - P.L[0];
                         }
+                        assert(fabs(future[i].position[k] - new_r[k]) <= P.L[0] * 0.5);
                     }
                     double d = distance(future[i].position, new_r);
                     if (d < P.rstar){
@@ -239,7 +266,6 @@ class MD {
                         icheck++;
                         jcheck++;
                     }
-                    
                 }
             }
         }
@@ -269,8 +295,6 @@ class MD {
         rng(rng),
         maxwell(0, sqrt(kb * P.T0 / P.mass))
         {   
-            assert(P.N/4==0);
-
             
             // to achieve p_tot = 0 we need a vector for the mean
             vecd mean_velocity {0, 0, 0};
@@ -293,16 +317,19 @@ class MD {
                 for (int k = 0; k < 12; k++){
                     // for x
                     for (int l = 0; l < 6; l++){
-                        
+                        //if (72*j + 6*k + l == 2 || 72*j + 6*k + l == 6) cout << j << " " << k << " " << l << endl;
                         // TODO CLEAN THIS MESS!!
                         past[72*j + 6*k + l].position[2] = 1e-10 + j/2 * P.a + j%2*P.a/2;// z coordinate
                         if (j%2 == 0){
                             past[72*j + 6*k + l].position[0] = 1e-10 + (l * P.a + k%2 * P.a/2);// x coordinate
-                            past[72*j + 6*k + l].position[1] = 1e-10 + (k/2 * P.a + k%2*P.a/2);// y coordinate
+                            past[72*j + 6*k + l].position[1] = 1e-10 + ((k+1)/2 * P.a + k%2*P.a/2);// y coordinate
+                            //if (72*j + 6*k + l == 2 || 72*j + 6*k + l == 6) cout << 1e-10 + (l * P.a + k%2 * P.a/2) << " " << 1e-10 + ((k+1)/2 * P.a + k%2*P.a/2) << endl;
                         }
                         else {
                             past[72*j + 6*k + l].position[0] = 1e-10 + (l * P.a + k%2 * P.a/2) +(P.a/2 - k%2*P.a);// x coordinate
-                            past[72*j + 6*k + l].position[1] = 1e-10 + (k/2 * P.a + k%2*P.a/2);// y coordinate
+                            past[72*j + 6*k + l].position[1] = 1e-10 + ((k+1)/2 * P.a + k%2*P.a/2);// y coordinate
+                            //if (72*j + 6*k + l == 2 || 72*j + 6*k + l == 6) cout << 1e-10 + (l * P.a + k%2 * P.a/2) +(P.a/2 - k%2*P.a) << " " << 1e-10 + ((k+1)/2 * P.a + k%2*P.a/2) << endl;
+                   
                         }
                     }
                 }
@@ -320,12 +347,13 @@ class MD {
                 }
             }
             
-            // just testing some stuff
+            //just testing some stuff
             ofstream outfile;
             outfile.open("test.txt");
             for (int i = 0; i < P.N; i++){
                 for (int k = 0; k < 3; k++){
                     outfile << past[i].position[k] << " ";
+                    assert(isnan(past[i].position[k]) == false);
                     if (k == 2) outfile << endl;
                 }
             }
@@ -341,56 +369,56 @@ class MD {
          * 
          * @return vecd idk what to return here yet....
          */
-        vecd verlet(double t, double tburn, double h, int o){
+        /* vecd verlet(double t, double tburn, double h, int o){
             
-            for (int n = 0; n * h < t; n++){
+        //     for (int n = 0; n * h < t; n++){
                 
-                if (n == 0){
-                    for (int i = 0; i < P.N; i++){
-                        for (int k = 0; k < 3; k++){
-                            present[i].position[k] = past[i].position[k] + h * past[i].velocity[k] / P.mass + h*h / 2.0;
-                        }
-                    }
-                }
+        //         if (n == 0){
+        //             for (int i = 0; i < P.N; i++){
+        //                 for (int k = 0; k < 3; k++){
+        //                     present[i].position[k] = past[i].position[k] + h * past[i].velocity[k] / P.mass + h*h / 2.0;
+        //                 }
+        //             }
+        //         }
 
-                vecd F = force(o);
-                // update the "future"
-                for (int i = 0; i < P.N; i++){
-                    for (int k = 0; k < 3; k++){
-                        // next position
-                        future[i].position[k] = 2*present[i].position[k] - past[i].position[k] + h*h * F[3*i + k];
-                        // we have to calculate the new velocity before applying boundary conditions -> otherwise
-                        // the velocity will be extremely large...
-                        future[i].velocity[k] = (future[i].position[k] - past[i].position[k]) / (2 * h);
-                        // we need to account for periodic boundary conditions
-                        if (future[i].position[k] < 0) future[i].position[k] += P.L[k];
-                        else if (future[i].position[k] > P.L[k]) future[i].position[k] -= P.L[k]; 
+        //         vecd F = force(o);
+        //         // update the "future"
+        //         for (int i = 0; i < P.N; i++){
+        //             for (int k = 0; k < 3; k++){
+        //                 // next position
+        //                 future[i].position[k] = 2*present[i].position[k] - past[i].position[k] + h*h * F[3*i + k];
+        //                 // we have to calculate the new velocity before applying boundary conditions -> otherwise
+        //                 // the velocity will be extremely large...
+        //                 future[i].velocity[k] = (future[i].position[k] - past[i].position[k]) / (2 * h);
+        //                 // we need to account for periodic boundary conditions
+        //                 if (future[i].position[k] < 0) future[i].position[k] += P.L[k];
+        //                 else if (future[i].position[k] > P.L[k]) future[i].position[k] -= P.L[k]; 
 
-                        // update past/present/future
-                        past[i].position[k] = present[i].position[k];
-                        present[i].position[k] = future[i].position[k];
+        //                 // update past/present/future
+        //                 past[i].position[k] = present[i].position[k];
+        //                 present[i].position[k] = future[i].position[k];
 
-                    }
-                }
+        //             }
+        //         }
                 
-                // calculating the wanted stuff after equilibrating the system
-                if (n * h > tburn){
+        //         // calculating the wanted stuff after equilibrating the system
+        //         if (n * h > tburn){
 
-                }
-            }
+        //         }
+        //     }
 
-            return present[0].position;
-        }
+        //     return present[0].position;
+        // }
+        */
 
         void velocity_verlet(double t, double tburn, double h, int o){
-            
-            
 
             // without table
             if (o == 0){
-                ofstream melt, vel_dist;
+                ofstream melt, vel_dist, tem;
                 melt.open("melting_factor.txt");
                 vel_dist.open("vel_dist.txt");
+                tem.open("temp.txt");
                 for (int n = 0; n * h < t; n++){
                     // just adding initial conditions
                     if (n == 0){
@@ -399,20 +427,26 @@ class MD {
                                 present[i].velocity[k] = past[i].velocity[k];
                                 present[i].position[k] = past[i].position[k];
                                 future[i].position[k] = past[i].position[k];
+                                assert(isnan(present[i].position[k]) == false);
+                                assert(isnan(future[i].position[k]) == false);
                             }
                         }
+                        tem << 0 << " " << temp() << endl;
                         melt << 0 << " " << melting() << endl;
                     }
                     
                     //int c = 0;
-
                     vecd F = force(o); // this has 3N dimensions
                     for (int i = 0; i < P.N; i++){
                         for (int k = 0; k < 3; k++){
-                            present[i].velocity[k] += h/(2*P.mass) * F[3*i + k];
+                            assert(isnan(future[i].velocity[k]) == false);
+                            present[i].velocity[k] += h/(2.0*P.mass) * F[3*i + k];
+                            assert(isnan(F[3*i + k]) == false);
                             future[i].position[k] = present[i].position[k] + h*present[i].velocity[k];
+                            assert(isnan(future[i].position[k]) == false);
                             if (future[i].position[k] > P.L[k]) future[i].position[k] -= P.L[k];
                             else if (future[i].position[k] < 0) future[i].position[k] += P.L[k];
+                            assert(isnan(future[i].position[k]) == false);
                             // if (fabs(future[i].position[k]) > P.L[0] && c==0){
                             //     cout << "here" << endl;
                             //     cout << future[i].position[k] << endl; 
@@ -423,10 +457,13 @@ class MD {
                     F = force(o);
                     for (int i = 0; i < P.N; i++){
                         for (int k = 0; k < 3; k++){
-                            future[i].velocity[k] = present[i].velocity[k] + h/(2*P.mass) * F[3*i + k];
+                            future[i].velocity[k] = present[i].velocity[k] + h/(2.0*P.mass) * F[3*i + k];
+                            present[i].velocity[k] = future[i].velocity[k];
+                            present[i].position[k] = future[i].position[k];
                         }
                     }
                     melt << (n+1) * h << " " << melting() << endl;
+                    tem << (n+1) * h << " " << temp() << endl;
                 }
 
                 for (int i = 0; i < P.N; i++){
@@ -437,6 +474,7 @@ class MD {
                     }
                     vel_dist << sqrt(v) << endl;
                 }
+
             }
 
 
@@ -444,11 +482,12 @@ class MD {
             // with table
             else {
                 // all the output we have
-                ofstream melt_tab, vel_dist_table;
+                ofstream melt_tab, vel_dist_table, temp_table;
                 melt_tab.open("melting_factor_tab.txt");
                 // open files
             
                 vel_dist_table.open("vel_dist_tab.txt");
+                temp_table.open("temp_table.txt");
                 
                 int check = 0;
                 for (int n = 0; n * h < t; n++){
@@ -472,14 +511,23 @@ class MD {
                                 }
                             }
                             melt_tab << 0 << " " << melting() << endl;
+                            temp_table << 0 << " " << temp() << endl;
                         }
                         
                         //int c = 0;
                         
                         vecd F = force(o); // this has 3N dimensions
+
+                        for (int i = 0; i < P.N; i++){
+                            double df = 0;
+                            for (int k = 0; k < 3; k++){
+                                df += pow(F[3*i + k], 2);
+                            }
+                        }
+
                         for (int i = 0; i < P.N; i++){
                             for (int k = 0; k < 3; k++){
-                                present[i].velocity[k] += h/(2*P.mass) * F[3*i + k];
+                                present[i].velocity[k] += h/(2.0*P.mass) * F[3*i + k];
                                 future[i].position[k] = present[i].position[k] + h*present[i].velocity[k];
                                 if (future[i].position[k] > P.L[k]) future[i].position[k] -= P.L[k];
                                 else if (future[i].position[k] < 0) future[i].position[k] += P.L[k];
@@ -494,11 +542,14 @@ class MD {
                         F = force(o);
                         for (int i = 0; i < P.N; i++){
                             for (int k = 0; k < 3; k++){
-                                future[i].velocity[k] = present[i].velocity[k] + h/(2*P.mass) * F[3*i + k];
+                                future[i].velocity[k] = present[i].velocity[k] + h/(2.0*P.mass) * F[3*i + k];
+                                present[i].velocity[k] = future[i].velocity[k];
+                                present[i].position[k] = future[i].position[k];
                             }
                         }
-                        melt_tab << (n+1) * h << " " << melting() << endl;
                     }
+
+                    
                     else {
                         check--;
 
@@ -520,10 +571,14 @@ class MD {
                         for (int i = 0; i < P.N; i++){
                             for (int k = 0; k < 3; k++){
                                 future[i].velocity[k] = present[i].velocity[k] + h/(2*P.mass) * F[3*i + k];
+                                present[i].velocity[k] = future[i].velocity[k];
+                                present[i].position[k] = future[i].position[k];
                             }
                         }
-                        melt_tab << (n+1) * h << " " << melting() << endl;
+                        
                     }
+                    melt_tab << (n+1) * h << " " << melting() << endl;
+                    temp_table << (n+1) * h << " " << temp() << endl;
                 }
                 for (int i = 0; i < P.N; i++){
                     double v = 0;
@@ -579,7 +634,7 @@ class MD {
                     T += pow(future[i].velocity[k], 2);
                 }
             }
-            return T/(3 * double(P.N));
+            return 16*T/(double(P.N));
         }
 
 
@@ -612,6 +667,17 @@ class MD {
             return output;
         }
 
+        double MSD(){
+            // assuming here that past stays as the initial distribution
+            double msd = 0;
+            for (int i = 0; i < P.N; i++){
+                for (int k = 0; k < 3; k++){
+                    msd = pow(future[i].position[k] - past[i].position[k], 2);
+                }
+            }
+
+            return msd / double(P.N);
+        }
 
 };
 
@@ -651,7 +717,7 @@ int main(int argc, char* argv[]){
     // Output parameters
     std::string output = "";
     std::string method = ""; 
-    double burnin = 0, until = 1, every = 0.032;
+    double burnin = 0, until = 100, every = 0.032;
     double rho = 0.55;
     int n = 0;
 
@@ -669,15 +735,17 @@ int main(int argc, char* argv[]){
     std::mt19937 rng((std::random_device())());
 
     // assuming cube box we get
-    P.L[0] = P.L[1] = P.L[2] = int(pow(double(P.N)/rho, 1.0/3.0));
+    P.L[0] = P.L[1] = P.L[2] = double(pow(double(P.N)/rho, 1.0/3.0));
 
-    
+    //P.N = 4;
 
-    int M3 = P.N/4;
+    double M3 = P.N/4;
     double M = pow(M3, 1.0/3.0);
     P.a = double(P.L[0]) / double(M);
 
-    
+    if(output[0] == 't') output = "time";
+    else if(output[0] == 'T') output = "temp";
+
 
 
     
@@ -690,25 +758,32 @@ int main(int argc, char* argv[]){
     cout << "Method \t" << method << endl;
     cout << "############################################" << endl;
 
-    auto t1 = high_resolution_clock::now();
-    MD md(P, rng);
-    md.velocity_verlet(until, burnin, every, n);
-    auto t2 = high_resolution_clock::now();
+    if (output == "time"){
 
-    duration<double, std::milli> ms_double = t2 - t1;
+        auto t1 = high_resolution_clock::now();
+        MD md(P, rng);
+        md.velocity_verlet(until, burnin, every, n);
+        auto t2 = high_resolution_clock::now();
 
-    auto t3 = high_resolution_clock::now();
-    MD mdd(P, rng);
-    mdd.velocity_verlet(until, burnin, every, 16);
-    auto t4 = high_resolution_clock::now();
+        duration<double, std::milli> ms_double = t2 - t1;
 
-    duration<double, std::milli> ms_double_2 = t4 - t3;
+        auto t3 = high_resolution_clock::now();
+        MD mdd(P, rng);
+        mdd.velocity_verlet(until, burnin, every, 16);
+        auto t4 = high_resolution_clock::now();
+
+        duration<double, std::milli> ms_double_2 = t4 - t3;
 
 
-    cout << "Without table: " << ms_double.count() << "ms" << " With table " << ms_double_2.count() << "ms" << endl;
-
+        cout << "Without table: " << ms_double.count() << "ms" << " With table " << ms_double_2.count() << "ms" << endl;
+    }
+    else if (output == "temp"){
+        MD mdd(P, rng);
+        mdd.velocity_verlet(until, burnin, every, 0);
+    }
     // in case I need to debug some more....
     if (false){
+        MD md(P, rng);
         vecd initial = md.print_past();
         cout << "before" << endl;
         md.velocity_verlet(until, burnin, every, n);
