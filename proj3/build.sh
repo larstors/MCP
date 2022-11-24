@@ -19,5 +19,5 @@ if [ $debug -ne 0 ]; then
   $compile -o MD MD.cpp
 else
   echo "Building with optimisations enabled; use the --debug option if you suspect problems"
-  $compile -O0 -g -DNDEBUG -o MD MD.cpp
+  $compile -O3 -DNDEBUG -o MD MD.cpp
 fi

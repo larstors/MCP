@@ -21,6 +21,7 @@
 using namespace std;
 using vecd = std::vector<long double>;
 using vec = std::vector<int>;
+using hist = std::vector<int>;
 
 using std::chrono::high_resolution_clock;
 using std::chrono::duration_cast;
@@ -37,6 +38,8 @@ struct Parameters {
     int    N = 100;             // number of particles
     double rstar = 3.3;         // for book keeping
     double a = 1;               // lattice constant 
+    double hist_depth = 1;      // depth of histogram (needed to declare the array)
+    double dx = 0.005;          // step size of histogram
 };
 
 template<typename Engine>
@@ -57,6 +60,7 @@ class MD {
     std::vector<Particle> past, present, future; // particles at t-dt, t, t+dt
     Engine& rng; // Source of noise: this is a reference as there should only be one of these!
     std::normal_distribution<double> maxwell;
+    hist h;
 
     /**
      * @brief Force on each particle in each coordinate using Lenard-Jones potential (could probs move this into 
@@ -239,8 +243,6 @@ class MD {
         
         // loop over output for particles
         for (int i = 0; i < P.N; i++){
-            // for keeping track of neighbours
-            int icheck = 0, jcheck = 0;
             // loop over all particles
             for (int j = i; j < P.N; j++){
                 if (j > i){
@@ -248,6 +250,7 @@ class MD {
                     // only want difference between different particles
                     vecd new_r (3);
                     for (int k = 0; k < 3; k++){
+                        new_r[k] = future[j].position[k];
                         if (fabs(future[i].position[k] - future[j].position[k]) < double(P.L[0]) / 2.0){
                             new_r[k] = future[j].position[k];
                         }
@@ -261,10 +264,8 @@ class MD {
                     }
                     double d = distance(future[i].position, new_r);
                     if (d < P.rstar){
-                        future[i].neigh[j] = d;
-                        future[j].neigh[i] = d;
-                        icheck++;
-                        jcheck++;
+                        future[i].neigh[j] += d;
+                        future[j].neigh[i] += d;
                     }
                 }
             }
@@ -278,11 +279,21 @@ class MD {
         double k = 4 * M_PI / P.a;
         for (int i = 0; i < P.N; i++){
             for (int j = 0; j < 3; j++){
-                rho_k += cos(k * future[i].position[k]);
+                rho_k += cos(k * future[i].position[j]);
             }
         }
-
         return rho_k;
+    }
+
+    void adjust_temp(){
+        // adjusting temperature
+        double T = temp();
+        double lambda = sqrt(P.T0 / T);
+        for (int i = 0; i < P.N; i++){
+            for (int k = 0; k < 3; k++){
+                future[i].velocity[k] *= lambda;
+            }
+        }
     }
 
     public:
@@ -293,7 +304,8 @@ class MD {
         present(P.N),
         future(P.N),
         rng(rng),
-        maxwell(0, sqrt(kb * P.T0 / P.mass))
+        maxwell(0, sqrt(kb * P.T0 / P.mass)),
+        h(P.hist_depth)
         {   
             
             // to achieve p_tot = 0 we need a vector for the mean
@@ -322,15 +334,15 @@ class MD {
                         past[72*j + 6*k + l].position[2] = 1e-10 + j/2 * P.a + j%2*P.a/2;// z coordinate
                         if (j%2 == 0){
                             past[72*j + 6*k + l].position[0] = 1e-10 + (l * P.a + k%2 * P.a/2);// x coordinate
-                            past[72*j + 6*k + l].position[1] = 1e-10 + ((k+1)/2 * P.a + k%2*P.a/2);// y coordinate
+                            past[72*j + 6*k + l].position[1] = 1e-10 + ((k)/2 * P.a + k%2*P.a/2);// y coordinate
                             //if (72*j + 6*k + l == 2 || 72*j + 6*k + l == 6) cout << 1e-10 + (l * P.a + k%2 * P.a/2) << " " << 1e-10 + ((k+1)/2 * P.a + k%2*P.a/2) << endl;
                         }
                         else {
                             past[72*j + 6*k + l].position[0] = 1e-10 + (l * P.a + k%2 * P.a/2) +(P.a/2 - k%2*P.a);// x coordinate
-                            past[72*j + 6*k + l].position[1] = 1e-10 + ((k+1)/2 * P.a + k%2*P.a/2);// y coordinate
+                            past[72*j + 6*k + l].position[1] = 1e-10 + ((k)/2 * P.a + k%2*P.a/2);// y coordinate
                             //if (72*j + 6*k + l == 2 || 72*j + 6*k + l == 6) cout << 1e-10 + (l * P.a + k%2 * P.a/2) +(P.a/2 - k%2*P.a) << " " << 1e-10 + ((k+1)/2 * P.a + k%2*P.a/2) << endl;
-                   
                         }
+                        if (past[72*j + 6*k + l].position[1] > P.L[0]) cout << j << " " << k << " " << l << endl;
                     }
                 }
             }
@@ -345,6 +357,10 @@ class MD {
                 for (int k = 0; k < 3; k++){
                     past[i].velocity[k] -= mean_velocity[k];
                 }
+            }
+
+            for (int i = 0; i < h.size(); i++){
+                h[i] = 0;
             }
             
             //just testing some stuff
@@ -411,8 +427,12 @@ class MD {
         // }
         */
 
-        void velocity_verlet(double t, double tburn, double h, int o){
-
+        void velocity_verlet(double t, double tburn, double h, int o, int adj){
+            // average temp, iterator
+            vecd averageTemp;
+            double Tav = 0;
+            int count = 0;
+            int data_block = 0;
             // without table
             if (o == 0){
                 ofstream melt, vel_dist, tem;
@@ -425,6 +445,7 @@ class MD {
                         for (int i = 0; i < P.N; i++){
                             for (int k = 0; k < 3; k++){
                                 present[i].velocity[k] = past[i].velocity[k];
+                                future[i].velocity[k] = past[i].velocity[k];
                                 present[i].position[k] = past[i].position[k];
                                 future[i].position[k] = past[i].position[k];
                                 assert(isnan(present[i].position[k]) == false);
@@ -462,6 +483,29 @@ class MD {
                             present[i].position[k] = future[i].position[k];
                         }
                     }
+                    
+                    
+                    
+                    // adjust temperature
+                    if (n%20 && adj==1) adjust_temp();
+
+
+                    // after equilibrating, going to use data blocking
+                    if (n * h > tburn){
+                        if (data_block == 0){
+                            data_block = 40;
+                            if (count > 0) averageTemp.push_back(Tav / double(data_block + 1));
+                            Tav = temp();
+                            count++;
+                            // length of each data block
+                        }
+                        
+                        else if (data_block > 0){
+                            Tav += temp();
+                            data_block--;
+                        }
+                    }
+
                     melt << (n+1) * h << " " << melting() << endl;
                     tem << (n+1) * h << " " << temp() << endl;
                 }
@@ -506,6 +550,7 @@ class MD {
                             for (int i = 0; i < P.N; i++){
                                 for (int k = 0; k < 3; k++){
                                     present[i].velocity[k] = past[i].velocity[k];
+                                    future[i].velocity[k] = past[i].velocity[k];
                                     present[i].position[k] = past[i].position[k];
                                     future[i].position[k] = past[i].position[k];
                                 }
@@ -517,13 +562,6 @@ class MD {
                         //int c = 0;
                         
                         vecd F = force(o); // this has 3N dimensions
-
-                        for (int i = 0; i < P.N; i++){
-                            double df = 0;
-                            for (int k = 0; k < 3; k++){
-                                df += pow(F[3*i + k], 2);
-                            }
-                        }
 
                         for (int i = 0; i < P.N; i++){
                             for (int k = 0; k < 3; k++){
@@ -577,6 +615,28 @@ class MD {
                         }
                         
                     }
+
+                    // adjust temperature
+                    if (n%20 && adj==1) adjust_temp();
+
+
+                    // after equilibrating, going to use data blocking
+                    if (n * h > tburn){
+                        if (data_block == 0){
+                            data_block = 40;
+                            if (count > 0) averageTemp.push_back(Tav / double(data_block + 1));
+                            Tav = temp();
+                            count++;
+                            // length of each data block
+                        }
+                        
+                        else if (data_block > 0){
+                            Tav += temp();
+                            data_block--;
+                        }
+                    }
+
+
                     melt_tab << (n+1) * h << " " << melting() << endl;
                     temp_table << (n+1) * h << " " << temp() << endl;
                 }
@@ -591,7 +651,21 @@ class MD {
 
             }
             
-            
+            // average temp and variance
+            Tav = 0;
+            double dTav = 0;
+            for (int i = 0; i < averageTemp.size(); i++){
+                Tav += averageTemp[i];
+                dTav += pow(averageTemp[i], 2);
+            }
+            Tav /= double(averageTemp.size());
+            dTav /= double(averageTemp.size());
+
+            dTav = sqrt((dTav - pow(Tav, 2)) / double(averageTemp.size()));
+
+            cout << "Average temperature is " << Tav << " with variance " << dTav << endl;
+            cout << "Initialisation temperature was " << P.T0 << endl;
+
 
         }
 
@@ -634,7 +708,7 @@ class MD {
                     T += pow(future[i].velocity[k], 2);
                 }
             }
-            return 16*T/(double(P.N));
+            return P.mass*T/(3*double(P.N));
         }
 
 
@@ -746,6 +820,13 @@ int main(int argc, char* argv[]){
     if(output[0] == 't') output = "time";
     else if(output[0] == 'T') output = "temp";
 
+    double min_pos = 0;
+    double max_pos = 2.5;
+    P.hist_depth = 1;
+    while (min_pos <= max_pos){
+        min_pos+= P.dx;
+        P.hist_depth++;
+    }
 
 
     
@@ -762,14 +843,14 @@ int main(int argc, char* argv[]){
 
         auto t1 = high_resolution_clock::now();
         MD md(P, rng);
-        md.velocity_verlet(until, burnin, every, n);
+        md.velocity_verlet(until, burnin, every, 0, 0);
         auto t2 = high_resolution_clock::now();
 
         duration<double, std::milli> ms_double = t2 - t1;
 
         auto t3 = high_resolution_clock::now();
         MD mdd(P, rng);
-        mdd.velocity_verlet(until, burnin, every, 16);
+        mdd.velocity_verlet(until, burnin, every, n, 0);
         auto t4 = high_resolution_clock::now();
 
         duration<double, std::milli> ms_double_2 = t4 - t3;
@@ -779,18 +860,18 @@ int main(int argc, char* argv[]){
     }
     else if (output == "temp"){
         MD mdd(P, rng);
-        mdd.velocity_verlet(until, burnin, every, 0);
+        mdd.velocity_verlet(until, burnin, every, 0, 0);
     }
     // in case I need to debug some more....
     if (false){
         MD md(P, rng);
         vecd initial = md.print_past();
         cout << "before" << endl;
-        md.velocity_verlet(until, burnin, every, n);
+        md.velocity_verlet(until, burnin, every, n, 0);
         cout << "after" << endl;
         bool work = md.reverse();
         cout << "reverse" << endl;
-        md.velocity_verlet(until, burnin, every, n);
+        md.velocity_verlet(until, burnin, every, n, 0);
         cout << "after reverse" << endl;
         vecd final = md.print_present();
 

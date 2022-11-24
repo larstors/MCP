@@ -4,36 +4,40 @@ import matplotlib.pyplot as plt
 """Just testing some stuff 
 """
 
-# mom = np.genfromtxt("test.txt", delimiter=" ")
+mom = np.genfromtxt("test.txt", delimiter=" ")
 
-# n = 1
-# n1 = 2
+n = 3
+n1 = n+1
 
-# coord = []
-# coord1 = []
+coord = []
+coord1 = []
 
-# for i in range(72*n, 72*n1):
-#     coord.append(mom[i, 0])
-#     coord.append(mom[i, 1])
-#     coord.append(mom[i, 2])
+for i in range(72*n, 72*n1):
+    coord.append(mom[i, 0])
+    coord.append(mom[i, 1])
+    coord.append(mom[i, 2])
 
-# for i in range(72*n1, 72*(n1+1)):
-#     coord1.append(mom[i, 0])
-#     coord1.append(mom[i, 1])
-#     coord1.append(mom[i, 2])
-
-# plt.scatter(x=coord[::3], y=coord[1::3], c="red")
-# plt.scatter(x=coord1[::3], y=coord1[1::3], c="green")
-
-# print(coord1[3:6])
-
-# plt.show()
-
-
-
-c = np.genfromtxt("test.txt", delimiter=" ")
+for i in range(72*n1, 72*(n1+1)):
+    coord1.append(mom[i, 0])
+    coord1.append(mom[i, 1])
+    coord1.append(mom[i, 2])
 
 fig = plt.figure()
-plt.hist(c[:, 0]-c[:, 1], bins=30, density=True)
-#plt.axis([-12, 12, 0, 1])
+plt.scatter(x=coord[::3], y=coord[1::3], c="red")
+plt.scatter(x=coord1[::3], y=coord1[1::3], c="green")
+
+print(coord1[3:6])
+
 plt.show()
+
+
+fig2 = plt.figure()
+plt.plot(x=coord[::3], x=coord[2::3])
+
+
+# c = np.genfromtxt("position_comparison.txt", delimiter=" ")
+
+# fig = plt.figure()
+# plt.hist(c[:, 0]-c[:, 1], bins=30, density=True)
+# #plt.axis([-12, 12, 0, 1])
+# plt.show()
