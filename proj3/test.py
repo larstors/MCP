@@ -22,17 +22,19 @@ for i in range(72*n1, 72*(n1+1)):
     coord1.append(mom[i, 1])
     coord1.append(mom[i, 2])
 
-fig = plt.figure()
-plt.scatter(x=coord[::3], y=coord[1::3], c="red")
-plt.scatter(x=coord1[::3], y=coord1[1::3], c="green")
+fig, ax = plt.subplots()
+ax.scatter(x=coord[::3], y=coord[1::3], c="red")
+ax.scatter(x=coord1[::3], y=coord1[1::3], c="green")
 
+ax.set_aspect("equal")
+
+ax.set_xlabel(r"$x$")
+ax.set_ylabel(r"$y$")
+ax.set_title(r"First two layers forming a (christmas) FCC")
 print(coord1[3:6])
 
-plt.show()
+plt.savefig("christmas_fcc.pdf", dpi=200)
 
-
-fig2 = plt.figure()
-plt.plot(x=coord[::3], x=coord[2::3])
 
 
 # c = np.genfromtxt("position_comparison.txt", delimiter=" ")

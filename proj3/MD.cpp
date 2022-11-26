@@ -21,7 +21,7 @@
 using namespace std;
 using vecd = std::vector<long double>;
 using vec = std::vector<int>;
-using hist = std::vector<int>;
+using hist = std::vector<double>;
 
 using std::chrono::high_resolution_clock;
 using std::chrono::duration_cast;
@@ -39,7 +39,7 @@ struct Parameters {
     double rstar = 3.3;         // for book keeping
     double a = 1;               // lattice constant 
     double hist_depth = 1;      // depth of histogram (needed to declare the array)
-    double dx = 0.005;          // step size of histogram
+    double dx = 0.05;          // step size of histogram
 };
 
 template<typename Engine>
@@ -60,7 +60,7 @@ class MD {
     std::vector<Particle> past, present, future; // particles at t-dt, t, t+dt
     Engine& rng; // Source of noise: this is a reference as there should only be one of these!
     std::normal_distribution<double> maxwell;
-    hist h;
+    hist hi;
 
     /**
      * @brief Force on each particle in each coordinate using Lenard-Jones potential (could probs move this into 
@@ -68,7 +68,7 @@ class MD {
      * 
      * @return vecd 
      */
-    vecd force(int o){
+    vecd force(int o, int burn){
         // vector with force for each particle and each component
         vecd f(P.N * 3);
         if (o == 0){
@@ -105,8 +105,18 @@ class MD {
                         //cout << i << " " << j << endl;
                         //for (int k = 0; k < 3; k++) cout << past[i].position[k] << " " << past[j].position[k] << endl;
                         assert(dist > 0);
-                        for (int k = 0; k < 3; k++){
-                            if (dist < 2.5){
+                        if (dist < 2.5){
+                            if (burn > 0){
+                                int count = 0;
+                                double x = P.dx;
+                                while (x < dist){
+                                    count++;
+                                    x += P.dx;
+                                }
+                                hi[count]+=1;
+                            }
+                            
+                            for (int k = 0; k < 3; k++){
                                 f[3*i + k] += 48.0*(1 * pow(dist, -14) - 0.5 * pow(dist, -8)) * (future[i].position[k] - new_r[k]);
                                 f[3*j + k] -= 48.0*(1 * pow(dist, -14) - 0.5 * pow(dist, -8)) * (future[i].position[k] - new_r[k]);
                                 assert(isnan(f[3*j + k]) == false);
@@ -142,8 +152,17 @@ class MD {
                             assert(fabs(future[i].position[k] - new_r[k]) <= P.L[0] * 0.5);
                         }
                         double dist = distance(future[i].position, new_r);
-                        for (int k = 0; k < 3; k++){
-                            if (dist < 2.5){
+                        if (dist < 2.5){
+                            if (burn > 0){
+                                int count = 0;
+                                double x = P.dx;
+                                while (x < dist){
+                                    count++;
+                                    x += P.dx;
+                                }
+                                hi[count]+=1;
+                            }
+                            for (int k = 0; k < 3; k++){
                                 f[3*i + k] += 48.0*(1 / pow(dist, 14) - 0.5 / pow(dist, 8)) * (future[i].position[k] - new_r[k]);
                                 f[3*j + k] -= 48.0*(1 / pow(dist, 14) - 0.5 / pow(dist, 8)) * (future[i].position[k] - new_r[k]);
                                 assert(isnan(f[3*j + k]) == false);
@@ -305,7 +324,7 @@ class MD {
         future(P.N),
         rng(rng),
         maxwell(0, sqrt(kb * P.T0 / P.mass)),
-        h(P.hist_depth)
+        hi(P.hist_depth)
         {   
             
             // to achieve p_tot = 0 we need a vector for the mean
@@ -359,8 +378,8 @@ class MD {
                 }
             }
 
-            for (int i = 0; i < h.size(); i++){
-                h[i] = 0;
+            for (int i = 0; i < hi.size(); i++){
+                hi[i] = 0;
             }
             
             //just testing some stuff
@@ -435,11 +454,14 @@ class MD {
             int data_block = 0;
             // without table
             if (o == 0){
-                ofstream melt, vel_dist, tem;
-                melt.open("melting_factor.txt");
-                vel_dist.open("vel_dist.txt");
-                tem.open("temp.txt");
+                ofstream melt, vel_dist, tem, histo;
+                melt.open("melting_factor_a.txt");
+                vel_dist.open("vel_dist_a.txt");
+                tem.open("temp_a.txt");
+                histo.open("histogram_a.txt");
+                int z = 0;
                 for (int n = 0; n * h < t; n++){
+                    if (n * h > tburn) z++;
                     // just adding initial conditions
                     if (n == 0){
                         for (int i = 0; i < P.N; i++){
@@ -457,7 +479,7 @@ class MD {
                     }
                     
                     //int c = 0;
-                    vecd F = force(o); // this has 3N dimensions
+                    vecd F = force(o, z); // this has 3N dimensions
                     for (int i = 0; i < P.N; i++){
                         for (int k = 0; k < 3; k++){
                             assert(isnan(future[i].velocity[k]) == false);
@@ -475,7 +497,7 @@ class MD {
                             // }
                         }
                     }
-                    F = force(o);
+                    F = force(o, z);
                     for (int i = 0; i < P.N; i++){
                         for (int k = 0; k < 3; k++){
                             future[i].velocity[k] = present[i].velocity[k] + h/(2.0*P.mass) * F[3*i + k];
@@ -518,6 +540,11 @@ class MD {
                     }
                     vel_dist << sqrt(v) << endl;
                 }
+                
+
+                for (int i = 0; i < hi.size(); i++){
+                    histo << hi[i] / (4*M_PI * P.dx * pow((i+1) * P.dx, 2) * z) << endl;
+                }
 
             }
 
@@ -526,15 +553,19 @@ class MD {
             // with table
             else {
                 // all the output we have
-                ofstream melt_tab, vel_dist_table, temp_table;
-                melt_tab.open("melting_factor_tab.txt");
+                ofstream melt_tab, vel_dist_table, temp_table, histogram_tab;
+                melt_tab.open("melting_factor_tab_16_a.txt");
                 // open files
             
-                vel_dist_table.open("vel_dist_tab.txt");
-                temp_table.open("temp_table.txt");
-                
+                vel_dist_table.open("vel_dist_tab_16_a.txt");
+                temp_table.open("temp_table_16_a.txt");
+
+                histogram_tab.open("testing_tab_16_a.txt");
+
+                int z = 0;
                 int check = 0;
                 for (int n = 0; n * h < t; n++){
+                    if (n * h > tburn) z++;
                     if (check == 0){
                         check = o;
                         for (int i = 0; i < P.N; i++){
@@ -561,7 +592,7 @@ class MD {
                         
                         //int c = 0;
                         
-                        vecd F = force(o); // this has 3N dimensions
+                        vecd F = force(o, z); // this has 3N dimensions
 
                         for (int i = 0; i < P.N; i++){
                             for (int k = 0; k < 3; k++){
@@ -577,7 +608,7 @@ class MD {
                             }
                         }
                         
-                        F = force(o);
+                        F = force(o, z);
                         for (int i = 0; i < P.N; i++){
                             for (int k = 0; k < 3; k++){
                                 future[i].velocity[k] = present[i].velocity[k] + h/(2.0*P.mass) * F[3*i + k];
@@ -591,7 +622,7 @@ class MD {
                     else {
                         check--;
 
-                        vecd F = force(o); // this has 3N dimensions
+                        vecd F = force(o, z); // this has 3N dimensions
                         for (int i = 0; i < P.N; i++){
                             for (int k = 0; k < 3; k++){
                                 present[i].velocity[k] += h/(2*P.mass) * F[3*i + k];
@@ -605,7 +636,7 @@ class MD {
                                 // }
                             }
                         }
-                        F = force(o);
+                        F = force(o, z);
                         for (int i = 0; i < P.N; i++){
                             for (int k = 0; k < 3; k++){
                                 future[i].velocity[k] = present[i].velocity[k] + h/(2*P.mass) * F[3*i + k];
@@ -741,6 +772,11 @@ class MD {
             return output;
         }
 
+        /**
+         * @brief Calculating the Mean Squared Displacement of the particles
+         * 
+         * @return double MSD averaged over particles
+         */
         double MSD(){
             // assuming here that past stays as the initial distribution
             double msd = 0;
@@ -819,10 +855,11 @@ int main(int argc, char* argv[]){
 
     if(output[0] == 't') output = "time";
     else if(output[0] == 'T') output = "temp";
+    else if(output[0] == 'a') output = "adjust_temp";
 
     double min_pos = 0;
     double max_pos = 2.5;
-    P.hist_depth = 1;
+    P.hist_depth = 0;
     while (min_pos <= max_pos){
         min_pos+= P.dx;
         P.hist_depth++;
@@ -861,6 +898,10 @@ int main(int argc, char* argv[]){
     else if (output == "temp"){
         MD mdd(P, rng);
         mdd.velocity_verlet(until, burnin, every, 0, 0);
+    }
+    else if (output == "adjust_temp"){
+        MD mdd(P, rng);
+        mdd.velocity_verlet(until, burnin, every, 0, 1);
     }
     // in case I need to debug some more....
     if (false){
