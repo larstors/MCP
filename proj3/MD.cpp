@@ -383,16 +383,16 @@ class MD {
             }
             
             //just testing some stuff
-            ofstream outfile;
-            outfile.open("test.txt");
-            for (int i = 0; i < P.N; i++){
-                for (int k = 0; k < 3; k++){
-                    outfile << past[i].position[k] << " ";
-                    assert(isnan(past[i].position[k]) == false);
-                    if (k == 2) outfile << endl;
-                }
-            }
-            outfile.close();
+            // ofstream outfile;
+            // outfile.open("test.txt");
+            // for (int i = 0; i < P.N; i++){
+            //     for (int k = 0; k < 3; k++){
+            //         outfile << past[i].position[k] << " ";
+            //         assert(isnan(past[i].position[k]) == false);
+            //         if (k == 2) outfile << endl;
+            //     }
+            // }
+            // outfile.close();
         }
 
         /**
@@ -454,11 +454,12 @@ class MD {
             int data_block = 0;
             // without table
             if (o == 0){
-                ofstream melt, vel_dist, tem, histo;
-                melt.open("melting_factor_a.txt");
-                vel_dist.open("vel_dist_a.txt");
-                tem.open("temp_a.txt");
-                histo.open("histogram_a.txt");
+                ofstream melt, vel_dist, tem, histo, msd;
+                melt.open("melting_factor_e_05.txt");
+                vel_dist.open("vel_dist_e.txt");
+                tem.open("temp_e.txt");
+                histo.open("histogram_e_05.txt");
+                msd.open("msd_e_05.txt");
                 int z = 0;
                 for (int n = 0; n * h < t; n++){
                     if (n * h > tburn) z++;
@@ -476,7 +477,10 @@ class MD {
                         }
                         tem << 0 << " " << temp() << endl;
                         melt << 0 << " " << melting() << endl;
+                        msd << 0 << " " << MSD() << endl;
                     }
+
+                    
                     
                     //int c = 0;
                     vecd F = force(o, z); // this has 3N dimensions
@@ -501,16 +505,22 @@ class MD {
                     for (int i = 0; i < P.N; i++){
                         for (int k = 0; k < 3; k++){
                             future[i].velocity[k] = present[i].velocity[k] + h/(2.0*P.mass) * F[3*i + k];
-                            present[i].velocity[k] = future[i].velocity[k];
-                            present[i].position[k] = future[i].position[k];
+                            //present[i].velocity[k] = future[i].velocity[k];
+                            //present[i].position[k] = future[i].position[k];
                         }
                     }
                     
                     
                     
                     // adjust temperature
-                    if (n%20 && adj==1) adjust_temp();
+                    if (n%20==0 && adj==1 && n>0) adjust_temp();
 
+                    for (int i = 0; i < P.N; i++){
+                        for (int k = 0; k < 3; k++){
+                            present[i].velocity[k] = future[i].velocity[k];
+                            present[i].position[k] = future[i].position[k];
+                        }
+                    }
 
                     // after equilibrating, going to use data blocking
                     if (n * h > tburn){
@@ -530,6 +540,7 @@ class MD {
 
                     melt << (n+1) * h << " " << melting() << endl;
                     tem << (n+1) * h << " " << temp() << endl;
+                    msd << (n+1) * h << " " << MSD() << endl;
                 }
 
                 for (int i = 0; i < P.N; i++){
@@ -553,14 +564,15 @@ class MD {
             // with table
             else {
                 // all the output we have
-                ofstream melt_tab, vel_dist_table, temp_table, histogram_tab;
-                melt_tab.open("melting_factor_tab_16_a.txt");
+                ofstream melt_tab, vel_dist_table, temp_table, histogram_tab, msd_tab;
+                melt_tab.open("melting_factor_tab_16_d_05.txt");
                 // open files
             
-                vel_dist_table.open("vel_dist_tab_16_a.txt");
-                temp_table.open("temp_table_16_a.txt");
+                vel_dist_table.open("vel_dist_tab_16_d.txt");
+                temp_table.open("temp_table_16_d.txt");
 
-                histogram_tab.open("testing_tab_16_a.txt");
+                histogram_tab.open("histogram_tab_16_d_05.txt");
+                msd_tab.open("msd_tab_e_05.txt");
 
                 int z = 0;
                 int check = 0;
@@ -588,6 +600,7 @@ class MD {
                             }
                             melt_tab << 0 << " " << melting() << endl;
                             temp_table << 0 << " " << temp() << endl;
+                            msd_tab << 0 << " " << MSD() << endl;
                         }
                         
                         //int c = 0;
@@ -612,8 +625,8 @@ class MD {
                         for (int i = 0; i < P.N; i++){
                             for (int k = 0; k < 3; k++){
                                 future[i].velocity[k] = present[i].velocity[k] + h/(2.0*P.mass) * F[3*i + k];
-                                present[i].velocity[k] = future[i].velocity[k];
-                                present[i].position[k] = future[i].position[k];
+                                //present[i].velocity[k] = future[i].velocity[k];
+                                //present[i].position[k] = future[i].position[k];
                             }
                         }
                     }
@@ -640,17 +653,22 @@ class MD {
                         for (int i = 0; i < P.N; i++){
                             for (int k = 0; k < 3; k++){
                                 future[i].velocity[k] = present[i].velocity[k] + h/(2*P.mass) * F[3*i + k];
-                                present[i].velocity[k] = future[i].velocity[k];
-                                present[i].position[k] = future[i].position[k];
+                                //present[i].velocity[k] = future[i].velocity[k];
+                                //present[i].position[k] = future[i].position[k];
                             }
                         }
                         
                     }
 
                     // adjust temperature
-                    if (n%20 && adj==1) adjust_temp();
+                    if (n%20==0 && adj==1 && n>0) adjust_temp();
 
-
+                    for (int i = 0; i < P.N; i++){
+                        for (int k = 0; k < 3; k++){
+                            present[i].velocity[k] = future[i].velocity[k];
+                            present[i].position[k] = future[i].position[k];
+                        }
+                    }
                     // after equilibrating, going to use data blocking
                     if (n * h > tburn){
                         if (data_block == 0){
@@ -670,6 +688,7 @@ class MD {
 
                     melt_tab << (n+1) * h << " " << melting() << endl;
                     temp_table << (n+1) * h << " " << temp() << endl;
+                    msd_tab << (n+1) * h << " " << MSD() << endl;
                 }
                 for (int i = 0; i < P.N; i++){
                     double v = 0;
@@ -678,6 +697,10 @@ class MD {
                         v += pow(future[i].velocity[k], 2);
                     }
                     vel_dist_table << sqrt(v) << endl;
+                }
+
+                for (int i = 0; i < hi.size(); i++){
+                    histogram_tab << hi[i] / double(4*M_PI * P.dx * pow((i+1) * P.dx, 2) * z) << endl;
                 }
 
             }
@@ -782,7 +805,7 @@ class MD {
             double msd = 0;
             for (int i = 0; i < P.N; i++){
                 for (int k = 0; k < 3; k++){
-                    msd = pow(future[i].position[k] - past[i].position[k], 2);
+                    msd += pow(future[i].position[k] - past[i].position[k], 2);
                 }
             }
 
@@ -900,8 +923,24 @@ int main(int argc, char* argv[]){
         mdd.velocity_verlet(until, burnin, every, 0, 0);
     }
     else if (output == "adjust_temp"){
+        auto t1 = high_resolution_clock::now();
+        MD md(P, rng);
+        md.velocity_verlet(until, burnin, every, 0, 1);
+        auto t2 = high_resolution_clock::now();
+
+        duration<double, std::milli> ms_double = t2 - t1;
+
+        auto t3 = high_resolution_clock::now();
         MD mdd(P, rng);
-        mdd.velocity_verlet(until, burnin, every, 0, 1);
+        mdd.velocity_verlet(until, burnin, every, n, 1);
+        auto t4 = high_resolution_clock::now();
+
+        duration<double, std::milli> ms_double_2 = t4 - t3;
+
+
+        cout << "Without table: " << ms_double.count() << "ms" << " With table " << ms_double_2.count() << "ms" << endl;
+
+        cout << "Lattice constant a is " << P.a << endl;
     }
     // in case I need to debug some more....
     if (false){
