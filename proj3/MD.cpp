@@ -40,6 +40,7 @@ struct Parameters {
     double a = 1;               // lattice constant 
     double hist_depth = 1;      // depth of histogram (needed to declare the array)
     double dx = 0.05;          // step size of histogram
+    double rho  = 0.8;
 };
 
 template<typename Engine>
@@ -81,20 +82,20 @@ class MD {
                         // calculating optimal position for image
                         vecd new_r (3);
 
-                        int l = 0;
+                        //int l = 0;
                         for (int k = 0; k < 3; k++){
                             new_r[k] = future[j].position[k];
                             if (fabs(future[i].position[k] - future[j].position[k]) < double(P.L[0]) / 2.0){
                                 new_r[k] = future[j].position[k];
-                                l = 1;
+                                //l = 1;
                             }
                             else if (future[i].position[k] - future[j].position[k] > double(P.L[0]) / 2.0){
                                 new_r[k] = future[j].position[k] + P.L[0];
-                                l = 2;
+                                //l = 2;
                             }
                             else if (future[i].position[k] - future[j].position[k] < - double(P.L[0]) / 2.0){
                                 new_r[k] = future[j].position[k] - P.L[0];
-                                l = 3;
+                                //l = 3;
                             }
                             //cout << l  << " " << future[i].position[k] - new_r[k] << " " << future[i].position[k] - future[j].position[k] << " " << P.L[0] * 0.5 << endl;
                             assert(fabs(future[i].position[k] - new_r[k]) <= P.L[0] * 0.5);
@@ -228,33 +229,33 @@ class MD {
     }
 
     double lenJones(double r){
-        return 4 * (1/pow(r, 12) - 1/pow(r, 6));
+        return -48 * (1/pow(r, 13) - 0.5/pow(r, 7));
     }
 
-    vecd potential(vecd r){
-        vecd output (P.N * P.N);
-
+    double dpotential(){
+        double output = 0;
         // loop over output for particles
         for (int i = 0; i < P.N; i++){
             // loop over all particles
-            for (int j = 0; j < P.N; j++){
-                if (r[P.N * i + j] > 2.5){
-                    output[P.N * i + j] = 0;
+            for (int j = i+1; j < P.N; j++){
+                vecd r = future[j].position;
+                for (int k = 0; k < 3; k++){
+                        if (fabs(future[i].position[k] - future[j].position[k]) < double(P.L[0]) / 2.0){
+                            r[k] = future[j].position[k];
+                        }
+                        else if (future[i].position[k] - future[j].position[k] > double(P.L[0]) / 2.0){
+                            r[k] = future[j].position[k] + P.L[0];
+                        }
+                        else if (future[i].position[k] - future[j].position[k] < - double(P.L[0]) / 2.0){
+                            r[k] = future[j].position[k] - P.L[0];
+                        }
+                    assert(fabs(future[i].position[k] - r[k]) <= P.L[0] * 0.5);
                     }
-                else {
-                    if (j > i){
-                        output[P.N * i + j] = lenJones(r[P.N * i + j]);
-                    }
-                    else if (i == j){
-                        output[P.N * i + j] = 0;
-                    }
-                    else {
-                        output[P.N * i + j] = lenJones(r[P.N * j + i]);
-                    }
-                }
+                double rij = distance(future[i].position, r);
+                output+= lenJones(rij) * rij;
             }
         }
-        return output;
+        return 1 - 1.0 / (3.0 * double(P.N) * P.T0) * output - 2*M_PI*P.rho/ (3.0 * P.T0) * ( - 48.0/9.0 * pow(2.5, -9) + 8.0 * pow(2.5, -3));
     }
 
     void table(){
@@ -454,12 +455,13 @@ class MD {
             int data_block = 0;
             // without table
             if (o == 0){
-                ofstream melt, vel_dist, tem, histo, msd;
-                melt.open("melting_factor_e_05.txt");
-                vel_dist.open("vel_dist_e.txt");
-                tem.open("temp_e.txt");
-                histo.open("histogram_e_05.txt");
-                msd.open("msd_e_05.txt");
+                ofstream melt, vel_dist, tem, histo, msd, pres;
+                melt.open("melting_factor_f.txt");
+                vel_dist.open("vel_dist_f.txt");
+                tem.open("temp_f.txt");
+                histo.open("histogram_f.txt");
+                msd.open("msd_f.txt");
+                pres.open("pressure.txt");
                 int z = 0;
                 for (int n = 0; n * h < t; n++){
                     if (n * h > tburn) z++;
@@ -536,6 +538,7 @@ class MD {
                             Tav += temp();
                             data_block--;
                         }
+
                     }
 
                     melt << (n+1) * h << " " << melting() << endl;
@@ -564,15 +567,16 @@ class MD {
             // with table
             else {
                 // all the output we have
-                ofstream melt_tab, vel_dist_table, temp_table, histogram_tab, msd_tab;
-                melt_tab.open("melting_factor_tab_16_d_05.txt");
+                ofstream melt_tab, vel_dist_table, temp_table, histogram_tab, msd_tab, pres_tab;
+                melt_tab.open("melting_factor_tab_16_f.txt");
                 // open files
             
-                vel_dist_table.open("vel_dist_tab_16_d.txt");
-                temp_table.open("temp_table_16_d.txt");
+                vel_dist_table.open("vel_dist_tab_16_f.txt");
+                temp_table.open("temp_table_16_f.txt");
 
-                histogram_tab.open("histogram_tab_16_d_05.txt");
-                msd_tab.open("msd_tab_e_05.txt");
+                histogram_tab.open("histogram_tab_16_f.txt");
+                msd_tab.open("msd_tab_f.txt");
+                pres_tab.open("pressure_tab.txt");
 
                 int z = 0;
                 int check = 0;
@@ -805,7 +809,16 @@ class MD {
             double msd = 0;
             for (int i = 0; i < P.N; i++){
                 for (int k = 0; k < 3; k++){
-                    msd += pow(future[i].position[k] - past[i].position[k], 2);
+                    // we use the image mirroring again
+                    if (fabs(future[i].position[k] - past[i].position[k]) < P.L[0] / 2.0){
+                        msd += pow(future[i].position[k] - past[i].position[k], 2);
+                    }
+                    else if ((past[i].position[k] - future[i].position[k]) > P.L[0] / 2.0){
+                        msd += pow(future[i].position[k] + P.L[0] - past[i].position[k], 2);
+                    }
+                    else if ((past[i].position[k] - future[i].position[k]) < -P.L[0] / 2.0 ){
+                        msd += pow(future[i].position[k] - P.L[0] - past[i].position[k], 2);
+                    }
                 }
             }
 
@@ -840,7 +853,7 @@ int main(int argc, char* argv[]){
     Parameters P;
 
     // Set up command-line overrides
-    CLI::App app{"Condensed Run-and-Tumble model (crumble)"};
+    CLI::App app{"Molecular Dynamics of Argon (MD)"};
 
     app.add_option("-m,--mass",    P.mass,      "mass of particles");
     app.add_option("-N,--particles",  P.N,      "Number of particles");
@@ -866,7 +879,7 @@ int main(int argc, char* argv[]){
     CLI11_PARSE(app, argc, argv);
 
     std::mt19937 rng((std::random_device())());
-
+    P.rho = rho;
     // assuming cube box we get
     P.L[0] = P.L[1] = P.L[2] = double(pow(double(P.N)/rho, 1.0/3.0));
 
