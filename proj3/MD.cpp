@@ -33,7 +33,7 @@ template<typename Engine> class ClusterWriter;
 
 struct Parameters {
     double      mass = 48.0;     // assuming the particles have the same mass
-    vec         L {10, 20, 30}; // dimensions of box
+    vecd         L {10, 20, 30}; // dimensions of box
     double      T0 = 1;         // initial temperature
     int    N = 100;             // number of particles
     double rstar = 3.3;         // for book keeping
@@ -255,7 +255,7 @@ class MD {
                 output+= lenJones(rij) * rij;
             }
         }
-        return 1 - 1.0 / (3.0 * double(P.N) * P.T0) * output - 2*M_PI*P.rho/ (3.0 * P.T0) * ( - 48.0/9.0 * pow(2.5, -9) + 8.0 * pow(2.5, -3));
+        return 1.0 / (3.0 * double(P.N) * temp()) * output;
     }
 
     void table(){
@@ -450,14 +450,18 @@ class MD {
         void velocity_verlet(double t, double tburn, double h, int o, int adj){
             // average temp, iterator
             vecd averageTemp;
+            vecd averagePres;
+            double TP = 0;
             double Tav = 0;
             int count = 0;
             int data_block = 0;
+            double pressure = 0;
+            double cc = 0;
             // without table
             if (o == 0){
                 ofstream melt, vel_dist, tem, histo, msd, pres;
                 melt.open("melting_factor_f.txt");
-                vel_dist.open("vel_dist_f.txt");
+                vel_dist.open("vel_dist_a.txt");
                 tem.open("temp_f.txt");
                 histo.open("histogram_f.txt");
                 msd.open("msd_f.txt");
@@ -488,25 +492,16 @@ class MD {
                     vecd F = force(o, z); // this has 3N dimensions
                     for (int i = 0; i < P.N; i++){
                         for (int k = 0; k < 3; k++){
-                            assert(isnan(future[i].velocity[k]) == false);
-                            present[i].velocity[k] += h/(2.0*P.mass) * F[3*i + k];
-                            assert(isnan(F[3*i + k]) == false);
-                            future[i].position[k] = present[i].position[k] + h*present[i].velocity[k];
-                            assert(isnan(future[i].position[k]) == false);
+                            future[i].velocity[k] += h/(2.0*P.mass) * F[3*i + k];
+                            future[i].position[k] = future[i].position[k] + h*future[i].velocity[k];
                             if (future[i].position[k] > P.L[k]) future[i].position[k] -= P.L[k];
                             else if (future[i].position[k] < 0) future[i].position[k] += P.L[k];
-                            assert(isnan(future[i].position[k]) == false);
-                            // if (fabs(future[i].position[k]) > P.L[0] && c==0){
-                            //     cout << "here" << endl;
-                            //     cout << future[i].position[k] << endl; 
-                            //     c++;
-                            // }
                         }
                     }
                     F = force(o, z);
                     for (int i = 0; i < P.N; i++){
                         for (int k = 0; k < 3; k++){
-                            future[i].velocity[k] = present[i].velocity[k] + h/(2.0*P.mass) * F[3*i + k];
+                            future[i].velocity[k] = future[i].velocity[k] + h/(2.0*P.mass) * F[3*i + k];
                             //present[i].velocity[k] = future[i].velocity[k];
                             //present[i].position[k] = future[i].position[k];
                         }
@@ -517,25 +512,30 @@ class MD {
                     // adjust temperature
                     if (n%20==0 && adj==1 && n>0) adjust_temp();
 
-                    for (int i = 0; i < P.N; i++){
-                        for (int k = 0; k < 3; k++){
-                            present[i].velocity[k] = future[i].velocity[k];
-                            present[i].position[k] = future[i].position[k];
-                        }
-                    }
+                    // for (int i = 0; i < P.N; i++){
+                    //     for (int k = 0; k < 3; k++){
+                    //         present[i].velocity[k] = future[i].velocity[k];
+                    //         present[i].position[k] = future[i].position[k];
+                    //     }
+                    // }
 
                     // after equilibrating, going to use data blocking
                     if (n * h > tburn){
                         if (data_block == 0){
                             data_block = 40;
-                            if (count > 0) averageTemp.push_back(Tav / double(data_block + 1));
+                            if (count > 0) {
+                                averageTemp.push_back(Tav / double(data_block + 1));
+                                averagePres.push_back(TP / double(data_block + 1));
+                            }
                             Tav = temp();
+                            TP = 1 - dpotential() - 2*M_PI*P.rho/ (3.0 * P.T0) * ( - 48.0/9.0 * pow(2.5, -9) + 8.0 * pow(2.5, -3));
                             count++;
                             // length of each data block
                         }
                         
                         else if (data_block > 0){
                             Tav += temp();
+                            TP += 1 - dpotential() - 2*M_PI*P.rho/ (3.0 * P.T0) * ( - 48.0/9.0 * pow(2.5, -9) + 8.0 * pow(2.5, -3));
                             data_block--;
                         }
 
@@ -544,6 +544,9 @@ class MD {
                     melt << (n+1) * h << " " << melting() << endl;
                     tem << (n+1) * h << " " << temp() << endl;
                     msd << (n+1) * h << " " << MSD() << endl;
+                    pres << (n+1) * h << " " << 1 - dpotential() - 2*M_PI*P.rho/ (3.0 * P.T0) * ( - 48.0/9.0 * pow(2.5, -9) + 8.0 * pow(2.5, -3)) << " " << 1 - dpotential()  << endl;
+                    pressure+= 1 - dpotential() - 2*M_PI*P.rho/ (3.0 * P.T0) * ( - 48.0/9.0 * pow(2.5, -9) + 8.0 * pow(2.5, -3));
+                    cc++;
                 }
 
                 for (int i = 0; i < P.N; i++){
@@ -559,7 +562,12 @@ class MD {
                 for (int i = 0; i < hi.size(); i++){
                     histo << hi[i] / (4*M_PI * P.dx * pow((i+1) * P.dx, 2) * z) << endl;
                 }
-
+                melt.close();
+                tem.close();
+                msd.close();
+                pres.close();
+                vel_dist.close();
+                histo.close();
             }
 
 
@@ -568,15 +576,15 @@ class MD {
             else {
                 // all the output we have
                 ofstream melt_tab, vel_dist_table, temp_table, histogram_tab, msd_tab, pres_tab;
-                melt_tab.open("melting_factor_tab_16_f.txt");
+                melt_tab.open("melting_factor_tab_16_e.txt");
                 // open files
             
-                vel_dist_table.open("vel_dist_tab_16_f.txt");
-                temp_table.open("temp_table_16_f.txt");
+                vel_dist_table.open("vel_dist_tab_16_e.txt");
+                temp_table.open("temp_table_16_e.txt");
 
-                histogram_tab.open("histogram_tab_16_f.txt");
-                msd_tab.open("msd_tab_f.txt");
-                pres_tab.open("pressure_tab.txt");
+                histogram_tab.open("histogram_tab_16_e.txt");
+                msd_tab.open("msd_tab_e_05.txt");
+                pres_tab.open("pressure_tab_e.txt");
 
                 int z = 0;
                 int check = 0;
@@ -677,14 +685,19 @@ class MD {
                     if (n * h > tburn){
                         if (data_block == 0){
                             data_block = 40;
-                            if (count > 0) averageTemp.push_back(Tav / double(data_block + 1));
+                            if (count > 0) {
+                                averageTemp.push_back(Tav / double(data_block + 1));
+                                averagePres.push_back(TP / double(data_block + 1));
+                            }
                             Tav = temp();
+                            TP = 1 - dpotential() - 2*M_PI*P.rho/ (3.0 * temp()) * ( - 48.0/9.0 * pow(2.5, -9) + 8.0 * pow(2.5, -3));
                             count++;
                             // length of each data block
                         }
                         
                         else if (data_block > 0){
                             Tav += temp();
+                            TP += 1 - dpotential() - 2*M_PI*P.rho/ (3.0 * temp()) * ( - 48.0/9.0 * pow(2.5, -9) + 8.0 * pow(2.5, -3));
                             data_block--;
                         }
                     }
@@ -693,6 +706,9 @@ class MD {
                     melt_tab << (n+1) * h << " " << melting() << endl;
                     temp_table << (n+1) * h << " " << temp() << endl;
                     msd_tab << (n+1) * h << " " << MSD() << endl;
+                    pres_tab << (n+1) * h << " " << 1 - dpotential() - 2*M_PI*P.rho/ (3.0 * temp()) * ( - 48.0/9.0 * pow(2.5, -9) + 8.0 * pow(2.5, -3)) << " " << 1 - dpotential() << endl;
+                    pressure+=1 - dpotential() - 2*M_PI*P.rho/ (3.0 * temp()) * ( - 48.0/9.0 * pow(2.5, -9) + 8.0 * pow(2.5, -3));
+                    cc++;
                 }
                 for (int i = 0; i < P.N; i++){
                     double v = 0;
@@ -706,6 +722,12 @@ class MD {
                 for (int i = 0; i < hi.size(); i++){
                     histogram_tab << hi[i] / double(4*M_PI * P.dx * pow((i+1) * P.dx, 2) * z) << endl;
                 }
+                melt_tab.close();
+                temp_table.close();
+                msd_tab.close();
+                pres_tab.close();
+                vel_dist_table.close();
+                histogram_tab.close();
 
             }
             
@@ -721,9 +743,24 @@ class MD {
 
             dTav = sqrt((dTav - pow(Tav, 2)) / double(averageTemp.size()));
 
+            // average pressure and variance
+            TP = 0;
+            double dTP = 0;
+            for (int i = 0; i < averagePres.size(); i++){
+                TP += averagePres[i];
+                dTP += pow(averagePres[i], 2);
+            }
+            TP /= double(averagePres.size());
+            dTP /= double(averagePres.size());
+
+            dTP = sqrt((dTP - pow(TP, 2)) / double(averagePres.size()));
+
             cout << "Average temperature is " << Tav << " with variance " << dTav << endl;
             cout << "Initialisation temperature was " << P.T0 << endl;
 
+            cout << "We get the pressure " << TP << " with variance " << dTP << endl;
+
+            cout << 2*M_PI*P.rho/ (3.0 * temp()) * ( - 48.0/9.0 * pow(2.5, -9) + 8.0 * pow(2.5, -3)) << endl;
 
         }
 
@@ -907,6 +944,7 @@ int main(int argc, char* argv[]){
     cout << "N \t" << P.N << endl;
     cout << "V \t" << P.L[0] << "x" << P.L[1] << "x" << P.L[2] << endl;
     cout << "rho \t" << rho << endl;
+    cout << "a \t" << P.a << endl;
     cout << "t_max \t" << until << " , burnin " << burnin << " , h " << every << endl;
     cout << "Output \t" << output << endl;
     cout << "Method \t" << method << endl;
@@ -936,24 +974,28 @@ int main(int argc, char* argv[]){
         mdd.velocity_verlet(until, burnin, every, 0, 0);
     }
     else if (output == "adjust_temp"){
-        auto t1 = high_resolution_clock::now();
-        MD md(P, rng);
-        md.velocity_verlet(until, burnin, every, 0, 1);
-        auto t2 = high_resolution_clock::now();
+        // auto t1 = high_resolution_clock::now();
+        // MD md(P, rng);
+        // md.velocity_verlet(until, burnin, every, 0, 1);
+        // auto t2 = high_resolution_clock::now();
 
-        duration<double, std::milli> ms_double = t2 - t1;
+        // duration<double, std::milli> ms_double = t2 - t1;
 
-        auto t3 = high_resolution_clock::now();
+        //auto t3 = high_resolution_clock::now();
         MD mdd(P, rng);
         mdd.velocity_verlet(until, burnin, every, n, 1);
-        auto t4 = high_resolution_clock::now();
+        //auto t4 = high_resolution_clock::now();
 
-        duration<double, std::milli> ms_double_2 = t4 - t3;
+        //duration<double, std::milli> ms_double_2 = t4 - t3;
 
 
-        cout << "Without table: " << ms_double.count() << "ms" << " With table " << ms_double_2.count() << "ms" << endl;
+        //cout << "Without table: " << ms_double.count() << "ms" << " With table " << ms_double_2.count() << "ms" << endl;
 
         cout << "Lattice constant a is " << P.a << endl;
+    }
+    else if (output == "w"){
+        MD md(P, rng);
+        md.velocity_verlet(until, burnin, every, 0, 1);
     }
     // in case I need to debug some more....
     if (false){
