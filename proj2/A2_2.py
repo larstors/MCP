@@ -98,9 +98,9 @@ tburn = 1000000
 
 total_time = tburn + 1000000
 
-M = 100
+M = 10
 
-T = np.linspace(1, 3, 40)
+T = np.linspace(1, 3, 200)
 
 magnet = np.zeros(len(T))
 
@@ -110,6 +110,7 @@ magnet_per_spin = Parallel(n_jobs=6)(delayed(run)(T=t, L=total_time, l=m, n=N) f
 
 for i in range(len(T)):
     magnet[i] = np.mean(magnet_per_spin[i*M:i*M+M])/(N**2)
+
 
 m_anal = np.vectorize(analytical_m)
 
