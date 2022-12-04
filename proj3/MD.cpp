@@ -384,16 +384,16 @@ class MD {
             }
             
             //just testing some stuff
-            // ofstream outfile;
-            // outfile.open("test.txt");
-            // for (int i = 0; i < P.N; i++){
-            //     for (int k = 0; k < 3; k++){
-            //         outfile << past[i].position[k] << " ";
-            //         assert(isnan(past[i].position[k]) == false);
-            //         if (k == 2) outfile << endl;
-            //     }
-            // }
-            // outfile.close();
+             ofstream outfile;
+             outfile.open("test.txt");
+             for (int i = 0; i < P.N; i++){
+                 for (int k = 0; k < 3; k++){
+                     outfile << past[i].velocity[k] << " ";
+                     assert(isnan(past[i].position[k]) == false);
+                     if (k == 2) outfile << endl;
+                 }
+             }
+             outfile.close();
         }
 
         /**
@@ -576,14 +576,14 @@ class MD {
             else {
                 // all the output we have
                 ofstream melt_tab, vel_dist_table, temp_table, histogram_tab, msd_tab, pres_tab;
-                melt_tab.open("melting_factor_tab_16_e.txt");
+                melt_tab.open("melting_factor_tab_16_.txt");
                 // open files
             
                 vel_dist_table.open("vel_dist_tab_16_e.txt");
                 temp_table.open("temp_table_16_e.txt");
 
-                histogram_tab.open("histogram_tab_16_e.txt");
-                msd_tab.open("msd_tab_e_05.txt");
+                histogram_tab.open("histogram_tab_16_.txt");
+                msd_tab.open("msd_tab_.txt");
                 pres_tab.open("pressure_tab_e.txt");
 
                 int z = 0;
@@ -975,8 +975,8 @@ int main(int argc, char* argv[]){
     }
     else if (output == "adjust_temp"){
         // auto t1 = high_resolution_clock::now();
-        // MD md(P, rng);
-        // md.velocity_verlet(until, burnin, every, 0, 1);
+        MD md(P, rng);
+        md.velocity_verlet(until, burnin, every, 0, 1);
         // auto t2 = high_resolution_clock::now();
 
         // duration<double, std::milli> ms_double = t2 - t1;
@@ -995,7 +995,7 @@ int main(int argc, char* argv[]){
     }
     else if (output == "w"){
         MD md(P, rng);
-        md.velocity_verlet(until, burnin, every, 0, 1);
+        md.velocity_verlet(until, burnin, every, 0, 0);
     }
     // in case I need to debug some more....
     if (false){
