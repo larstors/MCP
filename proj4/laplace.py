@@ -124,30 +124,30 @@ def distance(boundary, a, b):
 
                 
 alpha = [0.5, 1.0, 1.25, 1.5, 1.75, 1.99]
-alpha_special = 2.5
+alpha_special = 2.01
 
 
+maxiteration = 2000
 
-
-output = jacobi(metal_box, boundary_location, 1000, width)
-output2 = GS(metal_box, boundary_location, 1000, width)
-#output3 = SOR(metal_box, boundary_location, 1000, width, 1.5)
+output = jacobi(metal_box, boundary_location, maxiteration, width)
+output2 = GS(metal_box, boundary_location, maxiteration, width)
+#output3 = SOR(metal_box, boundary_location, maxiteration, width, 1.5)
 
 maximum = []
 average = []
 it = []
 
 for i in alpha:
-    o = SOR(metal_box, boundary_location, 1000, width, i)
+    o = SOR(metal_box, boundary_location, maxiteration, width, i)
     maximum.append(o[2])
     average.append(o[3])
     it.append(o[1])
 
 f = plt.figure()
 plt.plot(np.arange(0, output[1]), output[2], label="Jacobi")
-plt.plot(np.arange(0, output2[1]), output2[2], label="Gauss-Seidel")
+plt.plot(np.arange(0, output2[1]), output2[2], "-", label="Gauss-Seidel")
 for i in range(len(alpha)):
-    plt.plot(np.arange(0, it[i]), maximum[i], label=r"SOR: $\alpha=%.2f$" % alpha[i])
+    plt.plot(np.arange(0, it[i]), maximum[i], "-.", label=r"SOR: $\alpha=%.2f$" % alpha[i])
 plt.xlabel("Iterations")
 plt.ylabel(r"$\mathrm{max}_{ij}\epsilon_{ij}$")
 plt.legend()
@@ -156,19 +156,31 @@ plt.savefig("epsmax.pdf", dpi=200)
 
 f1 = plt.figure()
 plt.plot(np.arange(0, output[1]), output[3], label="Jacobi")
-plt.plot(np.arange(0, output2[1]), output2[3], label="Gauss-Seidel")
+plt.plot(np.arange(0, output2[1]), output2[3], "-",  label="Gauss-Seidel")
 for i in range(len(alpha)):
-    plt.plot(np.arange(0, it[i]), average[i], label=r"SOR: $\alpha=%.2f$" % alpha[i])
+    plt.plot(np.arange(0, it[i]), average[i], "-.", label=r"SOR: $\alpha=%.2f$" % alpha[i])
 plt.xlabel("Iterations")
-plt.ylabel(r"$\langle\epsilon\rangle_{ij}$")
+plt.ylabel(r"$\langle\epsilon_{ij}\rangle_{ij}$")
 plt.legend()
 plt.yscale("log")
 plt.savefig("epsavg.pdf", dpi=200)
 
 
+oo = SOR(metal_box, boundary_location, 4000, width, alpha_special)
 
+f = plt.figure()
+plt.plot(np.arange(0, oo[1]), oo[2])
+plt.xlabel("Iterations")
+plt.ylabel(r"$\mathrm{max}_{ij}\epsilon_{ij}$")
+plt.yscale("log")
+plt.savefig("epsmax_high.pdf", dpi=200)
 
-
+f1 = plt.figure()
+plt.plot(np.arange(0, oo[1]), oo[3])
+plt.xlabel("Iterations")
+plt.ylabel(r"$\langle\epsilon_{ij}\rangle_{ij}$")
+plt.yscale("log")
+plt.savefig("epsavg_high.pdf", dpi=200)
 
 
 
@@ -187,6 +199,74 @@ plt.imshow(output3[0])
 plt.colorbar()
 plt.savefig("colorSOR.pdf")
 """
+
+
+
+
+def anal(n, x, y, L=1):
+    out = 0
+    for k in range(1, n+1, 2):
+        out += 400/(k*np.pi) * np.sin(k*np.pi*y/L)*np.exp(-k*np.pi*x)
+    return out
+
+A1 = np.zeros((N, N))
+A2 = np.zeros((N, N))
+A3 = np.zeros((N, N))
+A4 = np.zeros((N, N))
+
+
+
+for i in range(N):
+    for j in range(N):
+        x = i/N
+        y = j/N
+        A1[i, j] = anal(1, x, y)
+        A2[i, j] = anal(10, x, y)
+        A3[i, j] = anal(100, x, y)
+        A4[i, j] = anal(1000, x, y)
+
+
+
+k = np.linspace(0, width, N)
+x, y = np.meshgrid(k, k)
+
+
+fig5, ax = plt.subplots(nrows=2, ncols=2, sharex=True, sharey=True)
+c = ax[0, 0].imshow(A1)
+ax[0, 1].imshow(A2)
+ax[1, 0].imshow(A3)
+ax[1, 1].imshow(A4)
+fig5.colorbar(c, ax=ax)
+ax[0, 0].set_title(r"$n=1$")
+ax[0, 1].set_title(r"$n=10$")
+ax[1, 0].set_title(r"$n=100$")
+ax[1, 1].set_title(r"$n=1000$")
+
+plt.savefig("analytical.pdf", dpi=200)
+
+fig6 = plt.figure()
+A = A4 - output2[0]
+plt.imshow(A)
+plt.colorbar()
+plt.title("Analytical(truncated) - Numerical")
+plt.savefig("comparison.pdf", dpi=200)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 """#@jit(fastmath=True)
 def solver(nmax):
