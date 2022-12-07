@@ -10,7 +10,7 @@ import ctypes
 # print(ar, arr)
 
 
-N = 30
+N = 100
 
 width, height = N, N
 minima, maxima = 0, 100.0 
