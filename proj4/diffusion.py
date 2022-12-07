@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import scipy as sc
 from numba import njit, jit
 from joblib import Parallel, delayed
+from matplotlib import colors
 
 # constants
 K = 210
@@ -28,7 +29,7 @@ def FTCS(dx: float, dt: float, Nmax=Nt, tmax=0):
     # lattice size 
     N = int(L/dx)
     if tmax > 0:
-        Nmax = int(tmax/dt[i])
+        Nmax = int(tmax/dt)
     #system array
     rod_past = np.zeros(N)
     rod_now = np.zeros(N)
@@ -37,18 +38,25 @@ def FTCS(dx: float, dt: float, Nmax=Nt, tmax=0):
     # initial conditions
     rod_past = initial(x)
     a = K/(C*rho) * dt / (dx**2)
+
+    temp = []
     #iteration
     for n in range(Nmax):
         rod_now[1:-1] = (1 - 2*a) * rod_past[1:-1] + a * (rod_past[0:-2] + rod_past[2:])
-        rod_past = rod_now.copy()
+        rod_past = rod_now
+        temp.append(rod_past.copy())
     
-    return x, rod_now, analytical(x, dt*Nmax), error(rod_now, analytical(x, dt*Nmax), Nmax),dt*Nt
+    
+    #return x, rod_now, analytical(x, dt*Nmax), error(rod_now, analytical(x, dt*Nmax), Nmax),dt*Nt
+    #return error(rod_now, analytical(x, dt*Nmax), Nmax)
+    return temp, x
+
 
 def EulerBack(dx: float, dt: float, Nmax=Nt, tmax=0):
     # lattice size 
     N = int(L/dx)
     if tmax > 0:
-        Nmax = int(tmax/dt[i])
+        Nmax = int(tmax/dt)
     #system array
     rod_past = np.zeros(N)
     rod_now = np.zeros(N)
@@ -70,8 +78,8 @@ def EulerBack(dx: float, dt: float, Nmax=Nt, tmax=0):
         g = np.zeros(N-1)
         h = np.zeros(N-1)
         # doing the downward recursion
-        for i in range(N-1, 0, -1):
-            if i == N-1:
+        for i in range(N-2, 0, -1):
+            if i == N-2:
                 g[i] = - alpha[-1] / beta[-1]
                 h[i] = rod_past[-1] / beta[-1]
             g[i-1] = - alpha[i] / (beta[i] + gamma[i] * g[i])
@@ -83,13 +91,14 @@ def EulerBack(dx: float, dt: float, Nmax=Nt, tmax=0):
             rod_now[i+1] = g[i] * rod_now[i] + h[i]
         
         rod_past = rod_now.copy()
-    return x, rod_now, analytical(x, dt*Nmax), error(rod_now, analytical(x, dt*Nmax), Nmax),dt*Nt
+    #return x, rod_now, analytical(x, dt*Nmax), error(rod_now, analytical(x, dt*Nmax), Nmax),dt*Nt
+    return error(rod_now, analytical(x, dt*Nmax), Nmax)
 
 def Crank(dx: float, dt: float, Nmax=Nt, tmax=0):
     # lattice size 
     N = int(L/dx)
     if tmax > 0:
-        Nmax = int(tmax/dt[i])
+        Nmax = int(tmax/dt)
     #system array
     rod_past = np.zeros(N)
     rod_now = np.zeros(N)
@@ -115,8 +124,8 @@ def Crank(dx: float, dt: float, Nmax=Nt, tmax=0):
         b[-1] = rod_past[-1]
         b[1:-1] = a * rod_past[:-2] + (1 - 2*a)*rod_past[1:-1] + a * rod_past[2:]
         # doing the downward recursion
-        for i in range(N-1, 0, -1):
-            if i == N-1:
+        for i in range(N-2, 0, -1):
+            if i == N-2:
                 g[i] = - alpha[-1] / beta[-1]
                 h[i] = rod_past[-1] / beta[-1]
             g[i-1] = - alpha[i] / (beta[i] + gamma[i] * g[i])
@@ -128,14 +137,15 @@ def Crank(dx: float, dt: float, Nmax=Nt, tmax=0):
             rod_now[i+1] = g[i] * b[i] + h[i]
         
         rod_past = rod_now.copy()
-    return x, rod_now, analytical(x, dt*Nmax), error(rod_now, analytical(x, dt*Nmax), Nmax),dt*Nt
+    #return x, rod_now, analytical(x, dt*Nmax), error(rod_now, analytical(x, dt*Nmax), Nmax),dt*Nt
+    return error(rod_now, analytical(x, dt*Nmax), Nmax)
     
 
 def Dufort(dx: float, dt: float, Nmax=Nt, tmax=0):
     # lattice size 
     N = int(L/dx)
     if tmax > 0:
-        Nmax = int(tmax/dt[i])
+        Nmax = int(tmax/dt)
     #system array
     rod_past = np.zeros(N)
     rod_now = np.zeros(N)
@@ -155,14 +165,38 @@ def Dufort(dx: float, dt: float, Nmax=Nt, tmax=0):
             rod_past = rod_now.copy()
             rod_now = rod_future.copy()
         
-    return x, rod_now, analytical(x, dt*Nmax), error(rod_now, analytical(x, dt*Nmax), Nmax),dt*Nt
+    #return x, rod_now, analytical(x, dt*Nmax), error(rod_now, analytical(x, dt*Nmax), Nmax),dt*Nt
+    return error(rod_now, analytical(x, dt*Nmax), Nmax)
 
 
+sim1 = FTCS(0.01, 0.1)
+t = np.arange(0, 0.1*Nt, 0.1)
 
-# sim1 = FTCS(0.01, 0.1)
+an = []
+for i in t:
+    an.append(analytical(sim1[1], i))
+
+fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(20, 5), sharex=True, sharey=True)
+plt.tight_layout()
+im = ax[0].imshow(sim1[0], aspect="auto", vmin=-0.2, vmax=1)
+im1 = ax[1].imshow(an, aspect="auto", vmin=-0.2, vmax=1)
+ax[0].set_title("Simulation")
+ax[1].set_title("Analytical")
+ax[0].set_ylabel("Iteration")
+ax[0].set_xlabel(r"$x$")
+ax[1].set_xlabel(r"$x$")
+plt.colorbar(im1, ax=ax)
+plt.savefig("2d_temp.pdf", dpi=200, bbox_inches="tight")
+#plt.show()
 # init = initial(sim1[0])
 
-
+fig2 = plt.figure()
+plt.imshow(np.array(sim1[0])-np.array(an), aspect="auto")
+plt.colorbar()
+plt.ylabel("Iterations")
+plt.xlabel(r"$x$")
+plt.title("Simulation - Analytical")
+plt.savefig("2d_temp_comp.pdf", dpi=200)
 # plt.plot(sim1[0], init, label="n=0")
 # plt.plot(sim1[0], sim1[1], label="n=%d" % Nt)
 # plt.plot(sim1[0], sim1[2], label="Ana. Sol.")
@@ -200,16 +234,24 @@ tmax = 100
 
 # #################### part c ####################
 
-epsFTCS = Parallel(n_jobs=4)(delayed(FTCS)(dx=0.01, dt=i, ) for i in dt)
-epsEB = []
-epsCr = []
-epsDuf = []
-for i in range(len(dt)):
-    N = int(tmax/dt[i])
-    sim = FTCS(dx=0.01, dt=dt[i], Nmax=N)
-    epsFTCS.append(sim[3])
+# epsFTCS = Parallel(n_jobs=4)(delayed(FTCS)(dx=0.01, dt=i, Nmax=10, tmax=100) for i in dt)
+# epsEB = Parallel(n_jobs=4)(delayed(EulerBack)(dx=0.01, dt=i, Nmax=10, tmax=100) for i in dt)
+# epsCr = Parallel(n_jobs=4)(delayed(Crank)(dx=0.01, dt=i, Nmax=10, tmax=100) for i in dt)
+# epsDuf =Parallel(n_jobs=4)(delayed(Dufort)(dx=0.01, dt=i, Nmax=10, tmax=100) for i in dt)
+# # for i in range(len(dt)):
+# #     N = int(tmax/dt[i])
+# #     sim = FTCS(dx=0.01, dt=dt[i], Nmax=N)
+# #     epsFTCS.append(sim[3])
 
 
-
-epsFTCS = np.array(epsFTCS)
-
+# plt.plot(dt, epsFTCS, label="FTCS")
+# plt.plot(dt, epsEB, label="Euler Back")
+# plt.plot(dt, epsCr, label="Crank-Nicolson")
+# plt.plot(dt, epsDuf, label="Dufort-Frankel")
+# plt.xlabel(r"$\Delta t$")
+# plt.ylabel(r"$\epsilon(t_\mathrm{max})$")
+# plt.legend()
+# plt.grid()
+# plt.xscale("log")
+# plt.yscale("log")
+# plt.savefig("2method_comp.pdf", dpi=200)
