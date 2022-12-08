@@ -47,9 +47,9 @@ def FTCS(dx: float, dt: float, Nmax=Nt, tmax=0):
         temp.append(rod_past.copy())
     
     
-    #return x, rod_now, analytical(x, dt*Nmax), error(rod_now, analytical(x, dt*Nmax), Nmax),dt*Nt
-    #return error(rod_now, analytical(x, dt*Nmax), Nmax)
-    return temp, x
+    #return x, rod_now, analytical(x, dt*Nmax), error(rod_now, analytical(x, dt*Nmax), L/dxNmax),dt*Nt
+    return error(rod_now, analytical(x, dt*Nmax), L/dx)
+    #return temp, x
 
 
 def EulerBack(dx: float, dt: float, Nmax=Nt, tmax=0):
@@ -65,34 +65,22 @@ def EulerBack(dx: float, dt: float, Nmax=Nt, tmax=0):
     # initial conditions
     rod_past = initial(x)
     a = K/(C*rho) * dt / (dx**2)
-
-    alpha = np.ones(N-1)*(-a)
-    beta = np.ones(N)*(1+2*a)
-    gamma = np.ones(N-1)*(-a)
-    alpha[-1] = 0
-    gamma[0] = 0
-    beta[0] = 1
-    beta[-1] = 1
+    F = np.zeros((N, N))
+    F[0, 0] = 1
+    F[-1, -1] = 1
+    for i in range(1, N-1):
+        F[i, i] = (1 + 2*a)
+        F[i, i+1] = -a
+        F[i, i-1] = -a
+    temp = []
     #iteration
     for n in range(Nmax):
-        g = np.zeros(N-1)
-        h = np.zeros(N-1)
-        # doing the downward recursion
-        for i in range(N-2, 0, -1):
-            if i == N-2:
-                g[i] = - alpha[-1] / beta[-1]
-                h[i] = rod_past[-1] / beta[-1]
-            g[i-1] = - alpha[i] / (beta[i] + gamma[i] * g[i])
-            h[i-1] = (rod_past[i] - gamma[i] * h[i])/(beta[i] + gamma[i] * g[i])
-        #upward recursion
-        for i in range(0, N-1):
-            if i==0:
-                rod_now[i] = (rod_past[i]-gamma[i]*h[i])/ (beta[i] + gamma[i] * g[i])
-            rod_now[i+1] = g[i] * rod_now[i] + h[i]
-        
+        rod_now = np.linalg.inv(F).dot(rod_past)
         rod_past = rod_now.copy()
+        temp.append(rod_now.copy())
     #return x, rod_now, analytical(x, dt*Nmax), error(rod_now, analytical(x, dt*Nmax), Nmax),dt*Nt
-    return error(rod_now, analytical(x, dt*Nmax), Nmax)
+    return error(rod_now, analytical(x, dt*Nmax), L/dx)
+    #return temp, x
 
 def Crank(dx: float, dt: float, Nmax=Nt, tmax=0):
     # lattice size 
@@ -107,38 +95,32 @@ def Crank(dx: float, dt: float, Nmax=Nt, tmax=0):
     x = np.linspace(0, L, N, endpoint=True)
     # initial conditions
     rod_past = initial(x)
-    a = K/(C*rho) * dt / (dx**2)
+    a = K/(C*rho) * dt / (2*dx**2)
+    F = np.zeros((N, N))
+    B = np.zeros((N, N))
+    F[0, 0] = 1
+    F[-1, -1] = 1
+    B[0, 0] = 1
+    B[-1, -1] = 1
+    for i in range(1, N-1):
+        F[i, i] = (1 + 2*a)
+        F[i, i+1] = -a
+        F[i, i-1] = -a
 
-    alpha = np.ones(N-1)*(-a)
-    beta = np.ones(N)*(1+2*a)
-    gamma = np.ones(N-1)*(-a)
-    alpha[-1] = 0
-    gamma[0] = 0
-    beta[0] = 1
-    beta[-1] = 1
+        B[i, i] = (1 - 2*a)
+        B[i, i+1] = a
+        B[i, i-1] = a
+    temp = []
     #iteration
     for n in range(Nmax):
-        g = np.zeros(N-1)
-        h = np.zeros(N-1)
-        b[0] = rod_past[0]
-        b[-1] = rod_past[-1]
-        b[1:-1] = a * rod_past[:-2] + (1 - 2*a)*rod_past[1:-1] + a * rod_past[2:]
-        # doing the downward recursion
-        for i in range(N-2, 0, -1):
-            if i == N-2:
-                g[i] = - alpha[-1] / beta[-1]
-                h[i] = rod_past[-1] / beta[-1]
-            g[i-1] = - alpha[i] / (beta[i] + gamma[i] * g[i])
-            h[i-1] = (b[i] - gamma[i] * h[i])/(beta[i] + gamma[i] * g[i])
-        #upward recursion
-        for i in range(0, N-1):
-            if i==0:
-                rod_now[i] = (b[i]-gamma[i]*h[i])/ (beta[i] + gamma[i] * g[i])
-            rod_now[i+1] = g[i] * b[i] + h[i]
-        
+        b = B.dot(rod_past)
+        A1 = np.linalg.inv(F)
+        rod_now = A1.dot(b)
         rod_past = rod_now.copy()
+        temp.append(rod_now.copy())
     #return x, rod_now, analytical(x, dt*Nmax), error(rod_now, analytical(x, dt*Nmax), Nmax),dt*Nt
-    return error(rod_now, analytical(x, dt*Nmax), Nmax)
+    return error(rod_now, analytical(x, dt*Nmax), L/dx)
+    #return temp, x
     
 
 def Dufort(dx: float, dt: float, Nmax=Nt, tmax=0):
@@ -155,7 +137,8 @@ def Dufort(dx: float, dt: float, Nmax=Nt, tmax=0):
     # initial conditions
     rod_past = initial(x)
     a = 2*K/(C*rho) * dt / (dx**2)
-    for n in range(Nmax):
+    temp = []
+    for n in range(Nmax+1):
         # need to do one step first so as to get the proper past
         if n == 0:
             rod_now = analytical(x, 1*dt)
@@ -164,48 +147,55 @@ def Dufort(dx: float, dt: float, Nmax=Nt, tmax=0):
             rod_future[1:-1] = (1 - a)/(1 + a) * rod_past[1:-1] + a/(1 + a) * (rod_now[:-2] + rod_now[2:])
             rod_past = rod_now.copy()
             rod_now = rod_future.copy()
+            temp.append(rod_future.copy())
         
     #return x, rod_now, analytical(x, dt*Nmax), error(rod_now, analytical(x, dt*Nmax), Nmax),dt*Nt
-    return error(rod_now, analytical(x, dt*Nmax), Nmax)
+    #return error(rod_now, analytical(x, dt*Nmax), L/dx)
+    return temp, x
 
 
-sim1 = FTCS(0.01, 0.1)
-t = np.arange(0, 0.1*Nt, 0.1)
+# sim1 = FTCS(0.01, 0.1)
+# t = np.arange(0, 0.1*Nt, 0.1)
 
-an = []
-for i in t:
-    an.append(analytical(sim1[1], i))
+# sim1 = Dufort(0.01, 0.1)
+# t = np.arange(0, 0.1*Nt, 0.1)
 
-fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(20, 5), sharex=True, sharey=True)
-plt.tight_layout()
-im = ax[0].imshow(sim1[0], aspect="auto", vmin=-0.2, vmax=1)
-im1 = ax[1].imshow(an, aspect="auto", vmin=-0.2, vmax=1)
-ax[0].set_title("Simulation")
-ax[1].set_title("Analytical")
-ax[0].set_ylabel("Iteration")
-ax[0].set_xlabel(r"$x$")
-ax[1].set_xlabel(r"$x$")
-plt.colorbar(im1, ax=ax)
-plt.savefig("2d_temp.pdf", dpi=200, bbox_inches="tight")
-#plt.show()
-# init = initial(sim1[0])
 
-fig2 = plt.figure()
-plt.imshow(np.array(sim1[0])-np.array(an), aspect="auto")
-plt.colorbar()
-plt.ylabel("Iterations")
-plt.xlabel(r"$x$")
-plt.title("Simulation - Analytical")
-plt.savefig("2d_temp_comp.pdf", dpi=200)
-# plt.plot(sim1[0], init, label="n=0")
-# plt.plot(sim1[0], sim1[1], label="n=%d" % Nt)
-# plt.plot(sim1[0], sim1[2], label="Ana. Sol.")
+# an = []
+# for i in t:
+#     an.append(analytical(sim1[1], i))
+
+
+# fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(20, 5), sharex=True, sharey=True)
+# plt.tight_layout()
+# im = ax[0].imshow(sim1[0], aspect="auto", vmin=-0.2, vmax=1)
+# im1 = ax[1].imshow(an, aspect="auto", vmin=-0.2, vmax=1)
+# ax[0].set_title("Simulation")
+# ax[1].set_title("Analytical")
+# ax[0].set_ylabel("Iteration")
+# ax[0].set_xlabel(r"$x$")
+# ax[1].set_xlabel(r"$x$")
+# plt.colorbar(im1, ax=ax)
+# #plt.savefig("2d_temp.pdf", dpi=200, bbox_inches="tight")
+# plt.show()
+# #init = initial(sim1[0])
+
+# fig2 = plt.figure()
+# plt.imshow(np.array(sim1[0])-np.array(an), aspect="auto")
+# plt.colorbar()
+# plt.ylabel("Iterations")
 # plt.xlabel(r"$x$")
-# plt.ylabel(r"$T(x, t)$")
-# plt.legend()
-# plt.grid()
-# plt.savefig("2_1.pdf", dpi=200)
-
+# plt.title("Simulation - Analytical")
+# #plt.savefig("2d_temp_comp.pdf", dpi=200)
+# # plt.plot(sim1[0], init, label="n=0")
+# # plt.plot(sim1[0], sim1[1], label="n=%d" % Nt)
+# # plt.plot(sim1[0], sim1[2], label="Ana. Sol.")
+# # plt.xlabel(r"$x$")
+# # plt.ylabel(r"$T(x, t)$")
+# # plt.legend()
+# # plt.grid()
+# # #plt.savefig("2_1.pdf", dpi=200)
+# plt.show()
 
 ##################### part b #########################
 # some appropriate dts? say 20?
@@ -234,24 +224,22 @@ tmax = 100
 
 # #################### part c ####################
 
-# epsFTCS = Parallel(n_jobs=4)(delayed(FTCS)(dx=0.01, dt=i, Nmax=10, tmax=100) for i in dt)
-# epsEB = Parallel(n_jobs=4)(delayed(EulerBack)(dx=0.01, dt=i, Nmax=10, tmax=100) for i in dt)
-# epsCr = Parallel(n_jobs=4)(delayed(Crank)(dx=0.01, dt=i, Nmax=10, tmax=100) for i in dt)
-# epsDuf =Parallel(n_jobs=4)(delayed(Dufort)(dx=0.01, dt=i, Nmax=10, tmax=100) for i in dt)
-# # for i in range(len(dt)):
-# #     N = int(tmax/dt[i])
-# #     sim = FTCS(dx=0.01, dt=dt[i], Nmax=N)
-# #     epsFTCS.append(sim[3])
+epsFTCS = Parallel(n_jobs=4)(delayed(FTCS)(dx=0.01, dt=i, Nmax=10, tmax=100) for i in dt)
+epsEB = Parallel(n_jobs=4)(delayed(EulerBack)(dx=0.01, dt=i, Nmax=10, tmax=100) for i in dt)
+epsCr = Parallel(n_jobs=4)(delayed(Crank)(dx=0.01, dt=i, Nmax=10, tmax=100) for i in dt)
+epsDuf =Parallel(n_jobs=4)(delayed(Dufort)(dx=0.01, dt=i, Nmax=10, tmax=100) for i in dt)
 
 
-# plt.plot(dt, epsFTCS, label="FTCS")
-# plt.plot(dt, epsEB, label="Euler Back")
-# plt.plot(dt, epsCr, label="Crank-Nicolson")
-# plt.plot(dt, epsDuf, label="Dufort-Frankel")
-# plt.xlabel(r"$\Delta t$")
-# plt.ylabel(r"$\epsilon(t_\mathrm{max})$")
-# plt.legend()
-# plt.grid()
-# plt.xscale("log")
-# plt.yscale("log")
-# plt.savefig("2method_comp.pdf", dpi=200)
+plt.plot(dt[:-5], epsFTCS[:-5], label="FTCS")
+plt.plot(dt, epsEB, label="Euler Back")
+plt.plot(dt, epsCr, label="Crank-Nicolson")
+plt.plot(dt, epsDuf, label="Dufort-Frankel")
+plt.xlabel(r"$\Delta t$")
+plt.ylabel(r"$\epsilon(t_\mathrm{max})$")
+plt.legend()
+plt.grid()
+plt.xscale("log")
+plt.yscale("log")
+plt.savefig("2method_comp.pdf", dpi=200)
+
+
