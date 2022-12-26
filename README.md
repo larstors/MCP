@@ -11,5 +11,9 @@ Not ideal, but each project has its own folder. The subjects of each folder/proj
         - Laplace Equation
         - Diffusion
         - Solitons
+    - Project 5: Quantum I:
+        - Variantional Monte Carlo
+        - Diffusive Monte Carlo
+        - Path Integral Monte Carlo
 
 
