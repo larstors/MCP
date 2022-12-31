@@ -197,6 +197,11 @@ class MD {
         return pow(dist, 1.0/2.0);
     }
 
+    /**
+     * @brief 
+     * 
+     * @return vecd 
+     */
     vecd minimal_distance(){
         vecd output (P.N * P.N);
 

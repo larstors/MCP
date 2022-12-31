@@ -4,6 +4,9 @@ import scipy as sc
 from numba import njit, jit
 from joblib import Parallel, delayed
 from matplotlib import colors
+plt.rcParams.update({'font.size': 20})
+
+
 
 # constants
 K = 210
@@ -82,6 +85,7 @@ def EulerBack(dx: float, dt: float, Nmax=Nt, tmax=0):
     return error(rod_now, analytical(x, dt*Nmax), L/dx)
     #return temp, x
 
+
 def Crank(dx: float, dt: float, Nmax=Nt, tmax=0):
     # lattice size 
     N = int(L/dx)
@@ -150,15 +154,15 @@ def Dufort(dx: float, dt: float, Nmax=Nt, tmax=0):
             temp.append(rod_future.copy())
         
     #return x, rod_now, analytical(x, dt*Nmax), error(rod_now, analytical(x, dt*Nmax), Nmax),dt*Nt
-    #return error(rod_now, analytical(x, dt*Nmax), L/dx)
-    return temp, x
+    return error(rod_now, analytical(x, dt*Nmax), L/dx)
+    #return temp, x
 
 
 # sim1 = FTCS(0.01, 0.1)
 # t = np.arange(0, 0.1*Nt, 0.1)
 
-# sim1 = Dufort(0.01, 0.1)
-# t = np.arange(0, 0.1*Nt, 0.1)
+# # sim1 = Dufort(0.01, 0.1)
+# # t = np.arange(0, 0.1*Nt, 0.1)
 
 
 # an = []
@@ -176,8 +180,7 @@ def Dufort(dx: float, dt: float, Nmax=Nt, tmax=0):
 # ax[0].set_xlabel(r"$x$")
 # ax[1].set_xlabel(r"$x$")
 # plt.colorbar(im1, ax=ax)
-# #plt.savefig("2d_temp.pdf", dpi=200, bbox_inches="tight")
-# plt.show()
+# plt.savefig("2d_temp.pdf", dpi=200, bbox_inches="tight")
 # #init = initial(sim1[0])
 
 # fig2 = plt.figure()
@@ -186,40 +189,42 @@ def Dufort(dx: float, dt: float, Nmax=Nt, tmax=0):
 # plt.ylabel("Iterations")
 # plt.xlabel(r"$x$")
 # plt.title("Simulation - Analytical")
-# #plt.savefig("2d_temp_comp.pdf", dpi=200)
-# # plt.plot(sim1[0], init, label="n=0")
-# # plt.plot(sim1[0], sim1[1], label="n=%d" % Nt)
-# # plt.plot(sim1[0], sim1[2], label="Ana. Sol.")
-# # plt.xlabel(r"$x$")
-# # plt.ylabel(r"$T(x, t)$")
-# # plt.legend()
-# # plt.grid()
-# # #plt.savefig("2_1.pdf", dpi=200)
-# plt.show()
+# plt.savefig("2d_temp_comp.pdf", dpi=200)
+# plt.plot(sim1[0], init, label="n=0")
+# plt.plot(sim1[0], sim1[1], label="n=%d" % Nt)
+# plt.plot(sim1[0], sim1[2], label="Ana. Sol.")
+# plt.xlabel(r"$x$")
+# plt.ylabel(r"$T(x, t)$")
+# plt.legend()
+# plt.grid()
+# #plt.savefig("2_1.pdf", dpi=200)
 
 ##################### part b #########################
 # some appropriate dts? say 20?
-dt = np.logspace(-3, np.log10(0.7), 100)
+dt = np.logspace(-3, 1, 30)
 # supposed to run until t=100
 tmax = 100
 # # simple list for epsilon
-# eps = []
-# for i in range(len(dt)):
-#     N = int(tmax/dt[i])
-#     sim = FTCS(dx=0.01, dt=dt[i], Nmax=N)
-#     eps.append(sim[3])
-# eps = np.array(eps)
+eps = []
+a = 0.01**2 * (2*K/(C*rho))**(-1)
+for i in range(len(dt)):
+    N = int(tmax/dt[i])
+    sim = FTCS(dx=0.01, dt=dt[i], Nmax=N)
+    eps.append(sim)
+eps = np.array(eps)
 
-# fig = plt.figure()
-# plt.plot(dt, eps)
-# plt.xlabel(r"$\Delta t$")
-# plt.ylabel(r"$\epsilon (t=100)$")
-# plt.grid()
-# plt.xscale("log")
-# plt.yscale("log")
-# plt.savefig("error_ftcs.pdf", dpi=200)
+fig = plt.figure()
+plt.plot(dt, eps)
+plt.xlabel(r"$\Delta t$")
+plt.ylabel(r"$\epsilon (t=100)$")
+plt.grid()
+plt.plot(np.ones(2)*a, [1e-4, 1e0])
+plt.axis([1e-3, 1e0, 1e-4, 1e0])
+plt.xscale("log")
+plt.yscale("log")
+plt.savefig("error_ftcs.pdf", dpi=200, bbox_inches="tight")
 
-# a = 0.01**2 * (2*K/(C*rho))**(-1)
+
 # print("FTCS is stable for dt<=%.3f" % a)
 
 # #################### part c ####################
@@ -230,16 +235,18 @@ epsCr = Parallel(n_jobs=4)(delayed(Crank)(dx=0.01, dt=i, Nmax=10, tmax=100) for 
 epsDuf =Parallel(n_jobs=4)(delayed(Dufort)(dx=0.01, dt=i, Nmax=10, tmax=100) for i in dt)
 
 
-plt.plot(dt[:-5], epsFTCS[:-5], label="FTCS")
-plt.plot(dt, epsEB, label="Euler Back")
-plt.plot(dt, epsCr, label="Crank-Nicolson")
-plt.plot(dt, epsDuf, label="Dufort-Frankel")
+f2 = plt.figure()
+plt.plot(dt, epsFTCS, "-o", label="FTCS")
+plt.plot(dt, epsEB, "-o", label="Euler Back")
+plt.plot(dt, epsCr, "-o", label="Crank-Nicolson")
+plt.plot(dt, epsDuf, "-o", label="Dufort-Frankel")
 plt.xlabel(r"$\Delta t$")
 plt.ylabel(r"$\epsilon(t_\mathrm{max})$")
 plt.legend()
+plt.axis([dt.min(), dt.max(), 1e-6, 1e1])
 plt.grid()
 plt.xscale("log")
 plt.yscale("log")
-plt.savefig("2method_comp.pdf", dpi=200)
+plt.savefig("2method_comp.pdf", dpi=200, bbox_inches="tight")
 
 

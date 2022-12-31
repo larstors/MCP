@@ -30,75 +30,74 @@ for i in range(width):
     boundary_location.append((width-1,i))
 
 
+@jit(fastmath=True)
+def jacobi(scheme, nmax, N):
+    inmatrix = scheme.copy()
+    outmatrix = scheme.copy()
+    it = 0
+    maximum = np.zeros(nmax)
+    average = np.zeros(nmax)
+    for n in range(nmax):
+        for i in range(1, N-1):
+            for j in range(1, N-1):
+                # if (i,j) in boundary:
+                #     pass
+                # else:
+                outmatrix[i, j] = (inmatrix[i-1][j] + inmatrix[i+1][j] + inmatrix[i][j-1] + inmatrix[i][j+1])/4
+        inmatrix = outmatrix.copy()
+        it+=1
+        de = distance( a=inmatrix, b=outmatrix)
+        maximum[n] = de[0]
+        average[n] = de[1]
+        if de[0] < threshold:
+            print(it)
+            break
+
+    return outmatrix, it, maximum, average
+
 #@jit(fastmath=True)
-def jacobi(scheme, boundary, nmax, N):
-    inmatrix = scheme.copy()
+def GS(scheme, nmax, N):
     outmatrix = scheme.copy()
     it = 0
-    maximum = []
-    average = []
+    maximum = np.zeros(nmax)
+    average = np.zeros(nmax)
     for n in range(nmax):
-        for i in range(N):
-            for j in range(N):
-                if (i,j) in boundary:
-                    pass
-                else:
-                    outmatrix[i, j] = (inmatrix[i-1][j] + inmatrix[i+1][j] + inmatrix[i][j-1] + inmatrix[i][j+1])/4
         inmatrix = outmatrix.copy()
+        for i in range(1, N-1):
+            for j in range(1, N-1):
+                # if (i,j) in boundary:
+                #     pass
+                # else:
+                outmatrix[i, j] = (outmatrix[i-1][j] + outmatrix[i+1][j] + outmatrix[i][j-1] + outmatrix[i][j+1])/4
+
         it+=1
-        de = distance(boundary=boundary, a=inmatrix, b=outmatrix)
-        maximum.append(de[0])
-        average.append(de[1])
+        de = distance(a=inmatrix, b=outmatrix)
+        maximum[n] = de[0]
+        average[n] = de[1]
         if de[0] < threshold:
             print(it)
             break
 
     return outmatrix, it, maximum, average
 
-def GS(scheme, boundary, nmax, N):
-    outmatrix = scheme.copy()
-    it = 0
-    maximum = []
-    average = []
-    for n in range(nmax):
-        inmatrix = outmatrix.copy()
-        for i in range(N):
-            for j in range(N):
-                if (i,j) in boundary:
-                    pass
-                else:
-                    outmatrix[i, j] = (outmatrix[i-1][j] + outmatrix[i+1][j] + outmatrix[i][j-1] + outmatrix[i][j+1])/4
-
-        it+=1
-        de = distance(boundary=boundary, a=inmatrix, b=outmatrix)
-        maximum.append(de[0])
-        average.append(de[1])
-        if de[0] < threshold:
-            print(it)
-            break
-
-    return outmatrix, it, maximum, average
-
-def SOR(scheme, boundary, nmax, N, alpha):
+#@jit(fastmath=True)
+def SOR(scheme, nmax, N, alpha):
     outmatrix = scheme.copy()
     inmatrix = scheme.copy()
     it = 0
-    maximum = []
-    average = []
+    maximum = np.zeros(nmax)
+    average = np.zeros(nmax)
     for n in range(nmax):
-        for i in range(N):
-            for j in range(N):
-                if (i,j) in boundary:
-                    pass
-                else:
-                    inmatrix[i, j] = (outmatrix[i-1][j] + outmatrix[i+1][j] + outmatrix[i][j-1] + outmatrix[i][j+1])/4
-                    adjustment = alpha * (inmatrix[i, j] - outmatrix[i, j])
-                    outmatrix[i, j] = adjustment + outmatrix[i, j]
+        for i in range(1, N-1):
+            for j in range(1, N-1):
+                inmatrix[i, j] = (outmatrix[i-1][j] + outmatrix[i+1][j] + outmatrix[i][j-1] + outmatrix[i][j+1])/4
+                adjustment = alpha * (inmatrix[i, j] - outmatrix[i, j])
+                outmatrix[i, j] = adjustment + outmatrix[i, j]
 
         it+=1
-        de = distance(boundary=boundary, a=inmatrix, b=outmatrix)
-        maximum.append(de[0])
-        average.append(de[1])
+        de = distance(a=inmatrix, b=outmatrix)
+        maximum[n] = de[0]
+        average[n] = de[1]
         if de[0] < threshold:
             print(it)
             break
@@ -106,20 +105,21 @@ def SOR(scheme, boundary, nmax, N, alpha):
     return outmatrix, it, maximum, average
 
 
-def distance(boundary, a, b):
+@jit(fastmath=True)
+def distance( a, b, N=100):
     average = 0
     max = 0
     n = 0
-    for i in range(len(a)):
-        for j in range(len(b)):
-            if (i, j) in boundary:
-                pass
-            else:
-                n+=1
-                e = np.abs(b[i, j] - (b[i+1, j]+b[i-1, j]+b[i, j+1]+b[i, j-1])/4)
-                average += e
-                if e > max:
-                    max = e
+    for i in range(1, N - 1):
+        for j in range(1, N - 1):
+            # if (i, j) in boundary:
+            #     pass
+            # else:
+            n+=1
+            e = np.abs(b[i, j] - (b[i+1, j]+b[i-1, j]+b[i, j+1]+b[i, j-1])/4)
+            average += e
+            if e > max:
+                max = e
     return max, average/n
 
                 
@@ -127,10 +127,10 @@ alpha = [0.5, 1.0, 1.25, 1.5, 1.75, 1.99]
 alpha_special = 2.01
 
 
-maxiteration = 2000
+maxiteration = 100000
 
-output = jacobi(metal_box, boundary_location, maxiteration, width)
-output2 = GS(metal_box, boundary_location, maxiteration, width)
+output = jacobi(metal_box, maxiteration, width)
+output2 = GS(metal_box, maxiteration, width)
 #output3 = SOR(metal_box, boundary_location, maxiteration, width, 1.5)
 
 maximum = []
@@ -138,16 +138,16 @@ average = []
 it = []
 
 for i in alpha:
-    o = SOR(metal_box, boundary_location, maxiteration, width, i)
+    o = SOR(metal_box, maxiteration, width, i)
     maximum.append(o[2])
     average.append(o[3])
     it.append(o[1])
 
 f = plt.figure()
-plt.plot(np.arange(0, output[1]), output[2], label="Jacobi")
-plt.plot(np.arange(0, output2[1]), output2[2], "-", label="Gauss-Seidel")
+plt.plot(np.arange(0, output[1]), output[2][output[2]>0], label="Jacobi")
+plt.plot(np.arange(0, output2[1]), output2[2][output2[2]>0], "-", label="Gauss-Seidel")
 for i in range(len(alpha)):
-    plt.plot(np.arange(0, it[i]), maximum[i], "-.", label=r"SOR: $\alpha=%.2f$" % alpha[i])
+    plt.plot(np.arange(0, it[i]), maximum[i][maximum[i]>0], "-.", label=r"SOR: $\alpha=%.2f$" % alpha[i])
 plt.xlabel("Iterations")
 plt.ylabel(r"$\mathrm{max}_{ij}\epsilon_{ij}$")
 plt.legend()
@@ -155,10 +155,10 @@ plt.yscale("log")
 plt.savefig("epsmax.pdf", dpi=200)
 
 f1 = plt.figure()
-plt.plot(np.arange(0, output[1]), output[3], label="Jacobi")
-plt.plot(np.arange(0, output2[1]), output2[3], "-",  label="Gauss-Seidel")
+plt.plot(np.arange(0, output[1]), output[3][output[2]>0], label="Jacobi")
+plt.plot(np.arange(0, output2[1]), output2[3][output2[2]>0], "-",  label="Gauss-Seidel")
 for i in range(len(alpha)):
-    plt.plot(np.arange(0, it[i]), average[i], "-.", label=r"SOR: $\alpha=%.2f$" % alpha[i])
+    plt.plot(np.arange(0, it[i]), average[i][average[i]>0], "-.", label=r"SOR: $\alpha=%.2f$" % alpha[i])
 plt.xlabel("Iterations")
 plt.ylabel(r"$\langle\epsilon_{ij}\rangle_{ij}$")
 plt.legend()
@@ -166,7 +166,7 @@ plt.yscale("log")
 plt.savefig("epsavg.pdf", dpi=200)
 
 
-oo = SOR(metal_box, boundary_location, 4000, width, alpha_special)
+oo = SOR(metal_box, 4000, width, alpha_special)
 
 f = plt.figure()
 plt.plot(np.arange(0, oo[1]), oo[2])
@@ -186,12 +186,14 @@ plt.savefig("epsavg_high.pdf", dpi=200)
 
 fig = plt.figure()
 plt.imshow(output[0])
-plt.colorbar()
+c1 = plt.colorbar()
+c1.set_label(r"$\phi$")
 plt.savefig("color.pdf")
 
 fig2 = plt.figure()
 plt.imshow(output2[0])
-plt.colorbar()
+c1 = plt.colorbar()
+c1.set_label(r"$\phi$")
 plt.savefig("colorGS.pdf")
 
 """fig3 = plt.figure()
@@ -247,7 +249,8 @@ plt.savefig("analytical.pdf", dpi=200)
 fig6 = plt.figure()
 A = A4 - output2[0]
 plt.imshow(A)
-plt.colorbar()
+c1 = plt.colorbar()
+c1.set_label(r"$\delta\phi$")
 plt.title("Analytical(truncated) - Numerical")
 plt.savefig("comparison.pdf", dpi=200)
 
