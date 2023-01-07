@@ -232,7 +232,7 @@ plt.savefig("error_ftcs.pdf", dpi=200, bbox_inches="tight")
 epsFTCS = Parallel(n_jobs=4)(delayed(FTCS)(dx=0.01, dt=i, Nmax=10, tmax=100) for i in dt)
 epsEB = Parallel(n_jobs=4)(delayed(EulerBack)(dx=0.01, dt=i, Nmax=10, tmax=100) for i in dt)
 epsCr = Parallel(n_jobs=4)(delayed(Crank)(dx=0.01, dt=i, Nmax=10, tmax=100) for i in dt)
-epsDuf =Parallel(n_jobs=4)(delayed(Dufort)(dx=0.01, dt=i, Nmax=10, tmax=100) for i in dt)
+epsDuf = Parallel(n_jobs=4)(delayed(Dufort)(dx=0.01, dt=i, Nmax=10, tmax=100) for i in dt)
 
 
 f2 = plt.figure()
