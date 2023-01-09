@@ -309,8 +309,8 @@ plt.savefig("A1_2.pdf", dpi=200)
 
 alp = np.linspace(0.0, 0.5, 51, endpoint=True)
 s_final = 1.0
-N_it = 10000
-n_eq = 5000
+N_it = 40000
+n_eq = 10000
 
 
 result = Parallel(n_jobs=10)(delayed(Metropolis_Monte_Carlo)(M=300, N=N_it, n=1000, s=s_final,
