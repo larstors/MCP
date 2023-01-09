@@ -157,16 +157,12 @@ def Metropolis_Monte_Carlo(M: int, N: int, n: int, s: float, kappa: float, beta:
     # arrays that are needed
     w1 = np.random.uniform(-0.5, 0.5, size=3*M)
     w2 = np.random.uniform(-0.5, 0.5, size=3*M)
-    energy = np.zeros(M)
-    mean_energy = np.zeros(N//n)
-    variance = np.zeros(N//n)
-    index = np.zeros(N//n)
-    total_local_energy = np.zeros(M)
-    dens1 = np.zeros((N - n_equil) * M)
-    dens2 = np.zeros((N - n_equil) * M)
-    dens_rel = np.zeros((N - n_equil) * M)
+
+    dens1 = np.array([])
+    dens2 = np.array([])
+    dens_rel = np.array([])
     ET = E0
-    et = np.zeros()
+    et = np.array([])
     # Doing the steps
     for i in range(N+1):
         # update particles
@@ -176,16 +172,17 @@ def Metropolis_Monte_Carlo(M: int, N: int, n: int, s: float, kappa: float, beta:
             F = Quant_Force(w1[3*m:3*m+3], w2[3*m:3*m+3],
                             kappa, beta, alpha)
 
-            eta = np.random.normal(0, 1, 3)
+            eta1 = np.random.normal(0, 1, 3)
+            eta2 = np.random.normal(0, 1, 3)
             # probability before doing the updates
             rho = Trial_Psi(w1[3*m:3*m+3], w2[3*m:3*m+3],
                             kappa, beta, alpha)**2
             # updating the two electrons of each walker
             trial_1 = w1[3*m:3*m+3] + 0.5 * \
-                (np.random.rand(3)*2*s-s) + eta * \
+                (np.random.rand(3)*2*s-s) + eta1 * \
                 np.sqrt(dtau) + dtau * F[0] / 2.0
             trial_2 = w2[3*m:3*m+3] + 0.5 * \
-                (np.random.rand(3)*2*s-s) + eta * \
+                (np.random.rand(3)*2*s-s) + eta2 * \
                 np.sqrt(dtau) + dtau * F[1] / 2.0
 
             # trial force
@@ -203,35 +200,18 @@ def Metropolis_Monte_Carlo(M: int, N: int, n: int, s: float, kappa: float, beta:
                 w1[3*m:3*m+3] = trial_1
                 w2[3*m:3*m+3] = trial_2
 
-            # add energy to sum
-            energy[m] += Local_Energy(w1[3*m:3*m+3],
-                                      w2[3*m:3*m+3], kappa, beta, alpha)
-
             if i >= n_equil:
-                total_local_energy[m] += Local_Energy(
-                    w1[3*m:3*m+3], w2[3*m:3*m+3], kappa, beta, alpha)
-                dens1[(i - n_equil) * M + m] = np.linalg.norm(w1[3*m:3*m+3])
-                dens2[(i - n_equil) * M + m] = np.linalg.norm(w2[3*m:3*m+3])
-                dens_rel[(i - n_equil) * M +
-                         m] = np.linalg.norm(w1[3*m:3*m+3] - w2[3*m:3*m+3])
+                dens1 = np.append(dens1, np.linalg.norm(w1[3*m:3*m+3]))
+                dens2 = np.append(dens2, np.linalg.norm(w2[3*m:3*m+3]))
+                dens_rel = np.append(dens_rel, np.linalg.norm(
+                    w1[3*m:3*m+3] - w2[3*m:3*m+3]))
 
             # update ET
-            ET = E0 + alpha / dtau * np.log(M / (len(w1)/3))
+            ET = E0 + np.log(M / (len(w1)/3))
             if i >= n_equil:
                 et = np.append(et, ET)
-        # to decrease computational effort and RAM we only take
-        # every nth measurement into consideration
-        if i % n == 0:
-            mean_energy[i//n] = np.mean(energy/n)
-            variance[i//n] = np.std(energy/n)
-            index[i//n] = i
-            # start energy from 0 again
-            energy *= 0
 
-    tot_E = np.mean(total_local_energy / (N - n_equil))
-    tot_var_E = np.std(total_local_energy / (N - n_equil))
-
-    return index, mean_energy, variance, tot_E, tot_var_E, dens1, dens2, dens_rel
+    return dens1, dens2, dens_rel
 
 
 # ########################## PART A ###########################

@@ -149,7 +149,7 @@ def Metropolis_Monte_Carlo(M: int, N: int, n: int, s: float, kappa: float, beta:
     dens1 = np.zeros((N - n_equil) * M)
     dens2 = np.zeros((N - n_equil) * M)
     dens_rel = np.zeros((N - n_equil) * M)
-
+    count = 0
     # Doing the steps
     for i in range(N+1):
         # from uniform distribution
@@ -200,16 +200,17 @@ def Metropolis_Monte_Carlo(M: int, N: int, n: int, s: float, kappa: float, beta:
                 F = Quant_Force(w1[3*m:3*m+3], w2[3*m:3*m+3],
                                 kappa, beta, alpha)
 
-                eta = np.random.normal(0, 1, 3)
+                eta1 = np.random.normal(0, 1, 3)
+                eta2 = np.random.normal(0, 1, 3)
                 # probability before doing the updates
                 rho = Trial_Psi(w1[3*m:3*m+3], w2[3*m:3*m+3],
                                 kappa, beta, alpha)**2
                 # updating the two electrons of each walker
                 trial_1 = w1[3*m:3*m+3] + 0.5 * \
-                    (np.random.rand(3)*2*s-s) + eta * \
+                    (np.random.rand(3)*2*s-s) + eta1 * \
                     np.sqrt(dtau) + dtau * F[0] / 2.0
                 trial_2 = w2[3*m:3*m+3] + 0.5 * \
-                    (np.random.rand(3)*2*s-s) + eta * \
+                    (np.random.rand(3)*2*s-s) + eta2 * \
                     np.sqrt(dtau) + dtau * F[1] / 2.0
 
                 # trial force
@@ -232,6 +233,8 @@ def Metropolis_Monte_Carlo(M: int, N: int, n: int, s: float, kappa: float, beta:
                                           w2[3*m:3*m+3], kappa, beta, alpha)
 
                 if i >= n_equil:
+                    if m == 0:
+                        count += 1
                     total_local_energy[m] += Local_Energy(
                         w1[3*m:3*m+3], w2[3*m:3*m+3], kappa, beta, alpha)
                     dens1[(i - n_equil) * M + m] = np.linalg.norm(w1[3*m:3*m+3])
@@ -248,9 +251,10 @@ def Metropolis_Monte_Carlo(M: int, N: int, n: int, s: float, kappa: float, beta:
             # start energy from 0 again
             energy *= 0
 
-    tot_E = np.mean(total_local_energy / (N - n_equil))
-    tot_var_E = np.std(total_local_energy / (N - n_equil))
+    tot_E = np.mean(total_local_energy / (count))
+    tot_var_E = np.std(total_local_energy / (count))
 
+    print(count, N - n_equil)
     return index, mean_energy, variance, tot_E, tot_var_E, dens1, dens2, dens_rel
 
 
@@ -259,7 +263,7 @@ def Metropolis_Monte_Carlo(M: int, N: int, n: int, s: float, kappa: float, beta:
 choice_s = np.array([0.1, 1.0, 10])
 
 #run1 = Metropolis_Monte_Carlo(300, 30000, 1000, 0.1, 2.0, 0.5, 0.15)
-
+"""
 result = Parallel(n_jobs=3)(delayed(Metropolis_Monte_Carlo)(M=300, N=30000, n=1000, s=ch,
                                                             kappa=2.0, beta=0.5, alpha=0.15, n_equil=30000, dtau=0, method="uniform") for ch in choice_s)
 
@@ -403,10 +407,11 @@ res = Metropolis_Monte_Carlo(M=300, N=N_it, n=1000, s=s_final,
 print("Optimal choice yields E=%f with std(E)=%f" % (res[3], res[4]))
 
 # ############################### PART G #########################
-
+"""
 tau = np.array([0.01, 0.05, 0.1, 0.2, 1.0])
 N_it = 20000
 n_eq = 10000
+s_final = 1.0
 
 result = Parallel(n_jobs=5)(delayed(Metropolis_Monte_Carlo)(M=300, N=N_it, n=1000, s=s_final,
                                                             kappa=1.85, alpha=0.18, beta=0.38, n_equil=n_eq, dtau=t, method="FP") for t in tau)
@@ -428,10 +433,10 @@ plt.savefig("A1_6.pdf", dpi=200)
 min_index_E = np.argmin(E)
 min_index_var_E = np.argmin(varE)
 
-print("With N=%d we get the minima for E_L=%.3f and std(E_L)=%.3f at delta tau = %.2f and %.2f, respectively" %
-      (N_it, E[min_index_E], varE[min_index_var_E], tau[min_index_E], tau[min_index_var_E]))
+print("With N=%d we get the minima for E_L=%.3f and std(E_L)=%.3f at delta tau = %.2f" %
+      (N_it, E[min_index_var_E], varE[min_index_var_E],  tau[min_index_var_E]))
 
-tau = 0.05
+tau = tau[min_index_var_E]
 
 res = Metropolis_Monte_Carlo(M=300, N=N_it, n=1000, s=s_final, kappa=1.85,
                              alpha=0.18, beta=0.38, n_equil=n_eq, dtau=tau, method="FP")
