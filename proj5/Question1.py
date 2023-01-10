@@ -206,11 +206,9 @@ def Metropolis_Monte_Carlo(M: int, N: int, n: int, s: float, kappa: float, beta:
                 rho = Trial_Psi(w1[3*m:3*m+3], w2[3*m:3*m+3],
                                 kappa, beta, alpha)**2
                 # updating the two electrons of each walker
-                trial_1 = w1[3*m:3*m+3] + 0.5 * \
-                    (np.random.rand(3)*2*s-s) + eta1 * \
+                trial_1 = w1[3*m:3*m+3]  + eta1 * \
                     np.sqrt(dtau) + dtau * F[0] / 2.0
-                trial_2 = w2[3*m:3*m+3] + 0.5 * \
-                    (np.random.rand(3)*2*s-s) + eta2 * \
+                trial_2 = w2[3*m:3*m+3]  + eta2 * \
                     np.sqrt(dtau) + dtau * F[1] / 2.0
 
                 # trial force
