@@ -92,7 +92,7 @@ def Quant_Force(r1: np.ndarray, r2: np.ndarray, kappa: float, beta: float, alpha
         (r1 - r2) / (radius12 * (1 + alpha * radius12)**2)
     force2 = - kappa * r2 / radius2 - beta * \
         (r1 - r2) / (radius12 * (1 + alpha * radius12)**2)
-    return force1, force2
+    return 2*force1, 2*force2
 
 
 @njit(fastmath=True)
@@ -186,6 +186,8 @@ def Metropolis_Monte_Carlo(M: int, N: int, n: int, s: float, kappa: float, beta:
                                           w2[3*m:3*m+3], kappa, beta, alpha)
 
                 if i > n_equil:
+                    if m == 0:
+                        count += 1
                     total_local_energy[m] += Local_Energy(
                         w1[3*m:3*m+3], w2[3*m:3*m+3], kappa, beta, alpha)
 
@@ -252,8 +254,12 @@ def Metropolis_Monte_Carlo(M: int, N: int, n: int, s: float, kappa: float, beta:
     tot_E = np.mean(total_local_energy / (count))
     tot_var_E = np.std(total_local_energy / (count))
 
-    return index, mean_energy, variance, tot_E, tot_var_E, dens1, dens2, dens_rel
+    return index[1:], mean_energy[1:], variance[1:], tot_E, tot_var_E
+    #, dens1, dens2, dens_rel
 
+
+# number of threads used 
+cores = 5
 
 # ########################### PART A ###########################
 
@@ -261,7 +267,7 @@ choice_s = np.array([0.1, 1.0, 10])
 
 #run1 = Metropolis_Monte_Carlo(300, 30000, 1000, 0.1, 2.0, 0.5, 0.15)
 
-result = Parallel(n_jobs=3)(delayed(Metropolis_Monte_Carlo)(M=300, N=30000, n=1000, s=ch,
+result = Parallel(n_jobs=cores)(delayed(Metropolis_Monte_Carlo)(M=300, N=30000, n=1000, s=ch,
                                                             kappa=2.0, beta=0.5, alpha=0.15, n_equil=30000, dtau=0, method="uniform") for ch in choice_s)
 
 fig1 = plt.figure()
@@ -288,7 +294,7 @@ s_final = 1.0
 
 alp = np.array([0.0, 0.1, 0.2, 0.3, 0.4, 0.5])
 
-result = Parallel(n_jobs=6)(delayed(Metropolis_Monte_Carlo)(M=300, N=10000, n=1000, s=s_final,
+result = Parallel(n_jobs=cores)(delayed(Metropolis_Monte_Carlo)(M=300, N=10000, n=1000, s=s_final,
                                                             kappa=2.0, beta=0.5, alpha=al, n_equil=10000, dtau=0, method="uniform") for al in alp)
 
 fig2 = plt.figure()
@@ -314,7 +320,7 @@ N_it = 40000
 n_eq = 10000
 
 
-result = Parallel(n_jobs=10)(delayed(Metropolis_Monte_Carlo)(M=300, N=N_it, n=1000, s=s_final,
+result = Parallel(n_jobs=cores)(delayed(Metropolis_Monte_Carlo)(M=300, N=N_it, n=1000, s=s_final,
                                                              kappa=2.0, beta=0.5, alpha=al, n_equil=n_eq, dtau=0, method="uniform") for al in alp)
 
 
@@ -332,6 +338,13 @@ plt.ylabel(r"$\langle\bar{E}_L\rangle$")
 plt.grid()
 plt.savefig("A1_3.pdf", dpi=200)
 
+fig3 = plt.figure()
+plt.plot(alp, varE)
+plt.xlabel(r"$\alpha$")
+plt.ylabel(r"Std($\bar{E}_L$")
+plt.grid()
+plt.savefig("A1_8.pdf", dpi=200)
+
 min_index_E = np.argmin(E)
 min_index_var_E = np.argmin(varE)
 
@@ -344,7 +357,7 @@ kap = np.linspace(1.7, 2.2, 31, endpoint=True)
 s_final = 1.0
 alp_min = alp[min_index_var_E]
 
-result = Parallel(n_jobs=10)(delayed(Metropolis_Monte_Carlo)(M=300, N=N_it, n=1000, s=s_final,
+result = Parallel(n_jobs=cores)(delayed(Metropolis_Monte_Carlo)(M=300, N=N_it, n=1000, s=s_final,
                                                              kappa=ka, beta=0.5, alpha=alp_min, n_equil=n_eq, dtau=0, method="uniform") for ka in kap)
 
 
@@ -362,6 +375,13 @@ plt.ylabel(r"$\langle\bar{E}_L\rangle$")
 plt.grid()
 plt.savefig("A1_4.pdf", dpi=200)
 
+fig3 = plt.figure()
+plt.plot(kap, varE)
+plt.xlabel(r"$\kappa$")
+plt.ylabel(r"Std($\bar{E}_L$")
+plt.grid()
+plt.savefig("A1_9.pdf", dpi=200)
+
 min_index_E = np.argmin(E)
 min_index_var_E = np.argmin(varE)
 
@@ -374,7 +394,7 @@ bet = np.linspace(0.2, 0.6, 31, endpoint=True)
 s_final = 1.0
 kap_min = kap[min_index_var_E]
 
-result = Parallel(n_jobs=10)(delayed(Metropolis_Monte_Carlo)(M=300, N=N_it, n=1000, s=s_final,
+result = Parallel(n_jobs=cores)(delayed(Metropolis_Monte_Carlo)(M=300, N=N_it, n=1000, s=s_final,
                                                              kappa=kap_min, beta=be, alpha=alp_min, n_equil=n_eq, dtau=0, method="uniform") for be in bet)
 
 
@@ -410,7 +430,7 @@ N_it = 20000
 n_eq = 10000
 s_final = 1.0
 
-result = Parallel(n_jobs=5)(delayed(Metropolis_Monte_Carlo)(M=300, N=N_it, n=1000, s=s_final,
+result = Parallel(n_jobs=cores)(delayed(Metropolis_Monte_Carlo)(M=300, N=N_it, n=1000, s=s_final,
                                                             kappa=1.85, alpha=0.18, beta=0.38, n_equil=n_eq, dtau=t, method="FP") for t in tau)
 
 E = []
@@ -433,30 +453,30 @@ min_index_var_E = np.argmin(varE)
 print("With N=%d we get the minima for E_L=%.3f and std(E_L)=%.3f at delta tau = %.2f" %
       (N_it, E[min_index_var_E], varE[min_index_var_E],  tau[min_index_var_E]))
 
-tau = tau[min_index_var_E]
+# tau = tau[min_index_var_E]
 
-res = Metropolis_Monte_Carlo(M=300, N=N_it, n=1000, s=s_final, kappa=1.85,
-                             alpha=0.18, beta=0.38, n_equil=n_eq, dtau=tau, method="FP")
-
-
-fig6, ax = plt.subplots(nrows=3, ncols=1)
-plt.tight_layout()
-ax[0].hist(res[5], bins=200, density=True, label="Electron 1")
-ax[1].hist(res[6], bins=200, density=True, label="Electron 2")
-ax[2].hist(res[7], bins=200, density=True)
-
-ax[0].set_ylabel(r"$\rho(r_1)$")
-ax[1].set_ylabel(r"$\rho(r_2)$")
-ax[2].set_ylabel(r"$\rho(|r_1-r_2|)$")
-ax[0].set_xlabel(r"$r_1$")
-ax[1].set_xlabel(r"$r_2$")
-ax[2].set_xlabel(r"$|r_1-r_2|$")
-ax[0].grid()
-ax[1].grid()
-ax[2].grid()
-
-plt.savefig("A1_7.pdf", dpi=200, bbox_inches="tight")
+# res = Metropolis_Monte_Carlo(M=300, N=N_it, n=1000, s=s_final, kappa=1.85,
+#                              alpha=0.18, beta=0.38, n_equil=n_eq, dtau=tau, method="FP")
 
 
-# o = integrate.nquad(normalisation, [[-1e4,1e4], [-1e4,1e4], [-1e4,1e4], [-1e4,1e4], [-1e4,1e4], [-1e4,1e4]], full_output=True, args=(2, 0.5, 0.15))
-# print(o)
+# fig6, ax = plt.subplots(nrows=3, ncols=1)
+# plt.tight_layout()
+# ax[0].hist(res[5], bins=200, density=True, label="Electron 1")
+# ax[1].hist(res[6], bins=200, density=True, label="Electron 2")
+# ax[2].hist(res[7], bins=200, density=True)
+
+# ax[0].set_ylabel(r"$\rho(r_1)$")
+# ax[1].set_ylabel(r"$\rho(r_2)$")
+# ax[2].set_ylabel(r"$\rho(r_{12})$")
+# ax[0].set_xlabel(r"$r_1$")
+# ax[1].set_xlabel(r"$r_2$")
+# ax[2].set_xlabel(r"$r_{12}$")
+# ax[0].grid()
+# ax[1].grid()
+# ax[2].grid()
+
+# plt.savefig("A1_7.pdf", dpi=200, bbox_inches="tight")
+
+
+# # o = integrate.nquad(normalisation, [[-1e4,1e4], [-1e4,1e4], [-1e4,1e4], [-1e4,1e4], [-1e4,1e4], [-1e4,1e4]], full_output=True, args=(2, 0.5, 0.15))
+# # print(o)
