@@ -229,10 +229,11 @@ int main(){
     int M = M0;
     double E0 = -2.891;
     double ET = E0;
+    
     // constant that fullfil cusp conditions
     double kappa = 2.0;
     double beta = 0.5;
-    double alpha = 0.12;
+    double alpha = 0.18;
 
     double dtau = 0.03;
     // start with array of 
@@ -269,6 +270,7 @@ int main(){
                     new_pos.push_back(x[6*i + n]);
                 }
             }
+
             else if (q[i] > 1){
                 int m = floor(q[i] + position_shift(rng));
                 for (int j = 0; j < m; j++){
