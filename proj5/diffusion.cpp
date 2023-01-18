@@ -56,7 +56,8 @@ vecd trial_psi(vecd r, double kappa, double beta, double alpha, int M){
         double r1 = sqrt(r[6*i] * r[6*i] + r[6*i + 1] * r[6*i + 1] + r[6*i + 2] * r[6*i + 2]);
         double r2 = sqrt(r[6*i + 3] * r[6*i + 3] + r[6*i  + 4] * r[6*i + 4] + r[6*i + 5] * r[6*i + 5]);
         double r12 = sqrt(pow(r[6*i] - r[6*i+3], 2) + pow(r[6*i+1] - r[6*i+4], 2) + pow(r[6*i + 2] - r[6*i+5], 2));
-        psi[i] = exp(- kappa * r1) * exp( - kappa * r2) * exp(beta * r12 / (1 + alpha * r12));
+
+        psi[i] = exp(- kappa * r1) * exp( - kappa * r2) * exp(beta * r12 / (1.0 + alpha * r12));
     }
     return psi;
 }
@@ -128,6 +129,7 @@ vecd force(vecd r, double kappa, double beta, double alpha, int M){
 vecd FP_Greens(vecd r, vecd y, vecd F, double dtau, int M){
     vecd green(M);
     for (int i = 0; i < M; i++){
+        
         double exponent = 0;
         for (int j = 0; j < 6; j++){
             exponent -= pow(y[6*i+j] - r[6*i+j] -  F[6*i+j] * dtau / 2.0, 2);
@@ -187,6 +189,7 @@ vecd single_step(vecd x, vecd eta, vecd met_acc, double dtau, double kappa, doub
         // update positions
         for (int n = 0; n < 6; n++){
             new_walkers[6*i + n] += F_old[6*i + n] * dtau / 2.0 + sqrt(dtau) * eta[6*i + n];
+            //if (new_walkers[6*i + n] > 100) cout << F_old[6*i + n] * dtau / 2.0 << " " << sqrt(dtau) * eta[6*i + n] << " " << sqrt(dtau) << " " << eta[6*i + n] << endl;
         }
     }
 
@@ -211,9 +214,9 @@ vecd single_step(vecd x, vecd eta, vecd met_acc, double dtau, double kappa, doub
 
 int main(){
     // output files
-    ofstream outfile;
+    ofstream outfile, dens;
     outfile.open("energy.txt");
-    
+    dens.open("dens.txt");
     
     // rng
     std::mt19937 rng((std::random_device())());
@@ -227,9 +230,9 @@ int main(){
     // initial number of walkers and energy
     int M0 = 300;
     int M = M0;
-    double E0 = -2.891;
+    double E0 = -2.88;
     double ET = E0;
-    
+
     // constant that fullfil cusp conditions
     double kappa = 2.0;
     double beta = 0.5;
@@ -248,11 +251,16 @@ int main(){
     for (int it = 0; it < max_it; it++){
         vecd et;
         vecd acc;
-        for (int i = 0; i < M; i++){
+        for (int i = 0; i < 6*M; i++){
             et.push_back(noise(rng));
             acc.push_back(position_shift(rng));
         }
         
+        for (const auto &e: et){
+            if (e > 100) cout << e << " " << it << endl;
+        }
+
+        if (x.size() != et.size()) cout << "wtf " << x.size() << " " << et.size() << endl;
         x = single_step(x, et, acc, dtau, kappa, beta, alpha, M);
 
 
@@ -290,11 +298,21 @@ int main(){
         // adjusting the energy
         ET = E0 + log(double(M0) / double(M));
 
-        outfile << it << " " << ET << endl;
+        outfile << it << " " << ET << " " << M << endl;
         if (it > n_eq){
             check += 1;
             av_E += ET;
+
+            if (it % 200 == 0){
+                for (int i = 0; i < M; i++){
+                    double r1 = sqrt(x[6*i] * x[6*i] + x[6*i + 1] * x[6*i + 1] + x[6*i + 2] * x[6*i + 2]);
+                    double r2 = sqrt(x[6*i + 3] * x[6*i + 3] + x[6*i  + 4] * x[6*i + 4] + x[6*i + 5] * x[6*i + 5]);
+                    double r12 = sqrt(pow(x[6*i] - x[6*i+3], 2) + pow(x[6*i+1] - x[6*i+4], 2) + pow(x[6*i + 2] - x[6*i+5], 2));
+                    dens << r1 << " " << r2 << " " << r12 << endl;
+                }
+            }
         }
+
     }
 
     cout << "Average energy after equilibration is " << av_E / check << endl;

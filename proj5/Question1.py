@@ -78,12 +78,6 @@ def Quant_Force(r1: np.ndarray, r2: np.ndarray, kappa: float, beta: float, alpha
     radius2 = np.linalg.norm(r2)
     radius12 = np.linalg.norm(r1 - r2)
     u = 1 + alpha * radius12
-    if radius1 == 0:
-        print("case 1: ", radius1, r1)
-    elif radius2 == 0:
-        print("case 2: ", radius2, r2)
-    elif radius12 == 0:
-        print("case 3: ", radius12, r1, r2)
 
     force1 = np.zeros(3)
     force2 = np.zeros(3)
@@ -273,10 +267,10 @@ result = Parallel(n_jobs=cores)(delayed(Metropolis_Monte_Carlo)(M=300, N=30000, 
 fig1 = plt.figure()
 
 for l, so in enumerate(choice_s):
-    plt.errorbar(result[l][0], result[l][1], yerr=result[l]
+    plt.errorbar(result[l][0]+l*100, result[l][1], yerr=result[l]
                  [2], fmt="-x", label=r"$s=%.1f$" % so)
-    plt.fill_between(result[l][0], result[l][1]-result[l]
-                     [2], result[l][1]+result[l][2], alpha=0.2)
+    #plt.fill_between(result[l][0], result[l][1]-result[l]
+    #                 [2], result[l][1]+result[l][2], alpha=0.2)
 plt.xlabel(r"Step $n$")
 plt.ylabel(r"$\langle E_L^n\rangle$")
 plt.legend()
@@ -300,10 +294,10 @@ result = Parallel(n_jobs=cores)(delayed(Metropolis_Monte_Carlo)(M=300, N=10000, 
 fig2 = plt.figure()
 
 for l, a in enumerate(alp):
-    plt.errorbar(result[l][0], result[l][1], yerr=result[l]
+    plt.errorbar(result[l][0]+l*100, result[l][1], yerr=result[l]
                  [2], fmt="-x", label=r"$\alpha=%.1f$" % a)
-    plt.fill_between(result[l][0], result[l][1]-result[l]
-                     [2], result[l][1]+result[l][2], alpha=0.2)
+    #plt.fill_between(result[l][0], result[l][1]-result[l]
+    #                 [2], result[l][1]+result[l][2], alpha=0.2)
     print("Std.dev. for alpha=%.2f is %.3f" % (a, result[l][2][-1]))
 plt.xlabel(r"Step $n$")
 plt.ylabel(r"$\langle E_L^n\rangle$")
