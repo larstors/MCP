@@ -406,6 +406,13 @@ plt.ylabel(r"$\langle\bar{E}_L\rangle$")
 plt.grid()
 plt.savefig("A1_5.pdf", dpi=200)
 
+fig3 = plt.figure()
+plt.plot(bet, varE)
+plt.xlabel(r"$\beta$")
+plt.ylabel(r"Std($\bar{E}_L$")
+plt.grid()
+plt.savefig("A1_10.pdf", dpi=200)
+
 min_index_E = np.argmin(E)
 min_index_var_E = np.argmin(varE)
 
