@@ -43,7 +43,7 @@ def mz(a: np.ndarray, N: int):
         int: magnetisation
     """
     for c in range(len(a)):
-        if c > 1e-3:
+        if np.abs(c) > 1e-3:
             c = format(c, "#0%db" % (N + 2))[2:]
             m = 0
             for i in c:
@@ -55,7 +55,7 @@ def mz(a: np.ndarray, N: int):
     return m * 0.5
 
 
-@njit()
+# @njit()
 def Z(eig: np.ndarray, T: float):
     """Partition sum of diagonalised problem
 
@@ -70,7 +70,7 @@ def Z(eig: np.ndarray, T: float):
     return np.sum(np.exp(-beta * eig))
 
 
-@njit()
+# @njit()
 def C(eig: np.ndarray, T: float, N: int):
     """Specific hear
 
@@ -104,16 +104,18 @@ def magnetisation(eig_E: np.ndarray, eig_v: np.ndarray, T: float, N: int):
 
     # need to transpose it as it otherwise is hard to handle
     eig_v = eig_v.T
-
+    # print(eig_v)
     # make array with the respective magnetisations in it
     m = np.zeros_like(eig_E)
     for i in range(len(eig_v)):
         m[i] = mz(eig_v[i], N)
+        #print(mz(eig_v[i], N))
 
     beta = 1 / T
     partition_sum = Z(eig_E, T)
     mean_mz = np.dot(m, np.exp(-beta * eig_E)) / partition_sum
     var_mz = np.dot(m**2, np.exp(-beta * eig_E)) / partition_sum
+    print("stuff", mean_mz, mean_mz**2, var_mz)
 
     return beta * (var_mz - mean_mz**2)
 
@@ -163,7 +165,7 @@ for i in range(2, 7):
     print("which has magnetisation %.1f\n" % mz(u2.T[j], i))
     print("Time for diagonalisation for N=%d is %f seconds" % (i, end - start))
 
-"""
+
 timing = []
 for i in range(2, 13):
     H2 = Hamiltonian(i)
@@ -182,7 +184,7 @@ plt.grid()
 plt.yscale("log")
 plt.savefig("diag_time.pdf", dpi=200)
 # plt.show()
-
+"""
 temp = np.array([0.1, 1, 10, 100])
 N = np.array([4, 6, 8, 10])
 
@@ -193,8 +195,11 @@ ev = []
 for i in N:
     H = Hamiltonian(i)
     eig, eigv = np.linalg.eig(H)
+    eig = np.asarray(eig, dtype=np.float32)
+    eigv = np.asarray(eigv, dtype=np.float32)
     e.append(eig)
     ev.append(eigv)
+
 
 fig1 = plt.figure()
 for i in temp:
@@ -213,6 +218,7 @@ for i in temp:
     val = []
     for n in range(len(N)):
         val.append(magnetisation(e[n], ev[n], i, N[n]))
+    print(val)
     plt.plot(N, val, "-x", label=r"$T=%.1f$" % i)
 plt.plot(N, np.ones_like(N)*(1/(4*temp[-1])), "--", label=r"High $T$ limit")
 plt.xlabel(r"$N$")
