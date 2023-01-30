@@ -71,12 +71,13 @@ def Z(eig: np.ndarray, T: float):
 
 
 @njit()
-def C(eig: np.ndarray, T: float):
+def C(eig: np.ndarray, T: float, N: int):
     """Specific hear
 
     Args:
-        eig (np.ndarray): Eigenenergies
         T (float): Temperature
+        N (int): Number of spins
+
 
     Returns:
         float: specific heat
@@ -90,18 +91,16 @@ def C(eig: np.ndarray, T: float):
     return beta**2 * (var_E - mean_E**2)
 
 
-def magnetisation(H: np.ndarray, T: float, N: int):
+def magnetisation(eig_E: np.ndarray, eig_v: np.ndarray, T: float, N: int):
     """average magnetisation of the system
 
     Args:
-        H (np.ndarray): Hamiltonian
         T (float): Temperature
         N (int): Number of spins
 
     Returns:
         Float: Average value of magnetisation of the spin chain
     """
-    eig_E, eig_v = np.linalg.eig(H)
 
     # need to transpose it as it otherwise is hard to handle
     eig_v = eig_v.T
@@ -119,11 +118,10 @@ def magnetisation(H: np.ndarray, T: float, N: int):
     return beta * (var_mz - mean_mz**2)
 
 
-def correlation(H: np.ndarray, T: float, N: int):
+def correlation(eig_E: np.ndarray, eig_v: np.ndarray, T: float, N: int):
     """Function to calculate the spin-spin correlation of the 0th and 2nd spin of the chain (i.e. first and third)
 
     Args:
-        H (np.ndarray): Hamiltonian
         T (float): Temperature
         N (int): Number of spins
 
@@ -131,7 +129,6 @@ def correlation(H: np.ndarray, T: float, N: int):
         Float: Correlation of first and third spin in the chain
     """
     beta = 1 / T
-    eig_E, eig_v = np.linalg.eig(H)
     partition_sum = Z(eig_E, T)
     # need to transpose it as it otherwise is hard to handle
     eig_v = eig_v.T
@@ -143,17 +140,18 @@ def correlation(H: np.ndarray, T: float, N: int):
             chain = format(j, "#0%db" % (N + 2))[2:]
             corr[i] += val**2 * (int(chain[-1]) - 0.5) * (int(chain[-3]) - 0.5)
         c += corr[i] * np.exp(-beta * eig_E[i])
-    return 3 * c / Z
+    return c / partition_sum
 
 
+"""
 print(Hamiltonian(2))
 
 a = np.array([0, 1 / np.sqrt(2), -1 / np.sqrt(2), 0])
 print(mz(a, 2))
 
 for i in range(2, 7):
-    H2 = Hamiltonian(i)
     start = time.time()
+    H2 = Hamiltonian(i)
     l2, u2 = np.linalg.eig(H2)
     end = time.time()
     print(
@@ -165,24 +163,74 @@ for i in range(2, 7):
     print("which has magnetisation %.1f\n" % mz(u2.T[j], i))
     print("Time for diagonalisation for N=%d is %f seconds" % (i, end - start))
 
-# timing = []
-# for i in range(2, 13):
-#     H2 = Hamiltonian(i)
-#     start = time.time()
-#     l2, u2 = np.linalg.eig(H2)
-#     end = time.time()
-#     timing.append([2**i, end - start])
-# timing = np.asarray(timing)
-# print(timing)
+"""
+timing = []
+for i in range(2, 13):
+    H2 = Hamiltonian(i)
+    start = time.time()
+    l2, u2 = np.linalg.eig(H2)
+    end = time.time()
+    timing.append([2**i, end - start])
+timing = np.asarray(timing)
+print(timing)
 
-# fig = plt.figure()
-# plt.plot(timing[:, 0], timing[:, 1])
-# plt.xlabel(r"$N$")
-# plt.ylabel(r"Diagonalisation time in [s]")
-# plt.grid()
-# plt.yscale("log")
-
+fig = plt.figure()
+plt.plot(timing[:, 0], timing[:, 1])
+plt.xlabel(r"$N$")
+plt.ylabel(r"Diagonalisation time in [s]")
+plt.grid()
+plt.yscale("log")
+plt.savefig("diag_time.pdf", dpi=200)
 # plt.show()
 
 temp = np.array([0.1, 1, 10, 100])
-N = np.array([4, 6, 8, 10, 12])
+N = np.array([4, 6, 8, 10])
+
+e = []
+ev = []
+
+
+for i in N:
+    H = Hamiltonian(i)
+    eig, eigv = np.linalg.eig(H)
+    e.append(eig)
+    ev.append(eigv)
+
+fig1 = plt.figure()
+for i in temp:
+    val = []
+    for n in range(len(N)):
+        val.append(correlation(e[n], ev[n], i, N[n]))
+    plt.plot(N, val, label=r"$T=%.1f$" % i)
+plt.xlabel(r"$N$")
+plt.ylabel(r"Correlation")
+plt.grid()
+plt.legend()
+plt.savefig("correlation.pdf", dpi=200)
+
+fig2 = plt.figure()
+for i in temp:
+    val = []
+    for n in range(len(N)):
+        val.append(magnetisation(e[n], ev[n], i, N[n]))
+    plt.plot(N, val, "-x", label=r"$T=%.1f$" % i)
+plt.plot(N, np.ones_like(N)*(1/(4*temp[-1])), "--", label=r"High $T$ limit")
+plt.xlabel(r"$N$")
+plt.ylabel(r"$\chi$")
+plt.grid()
+plt.legend()
+plt.savefig("magnet_suscept.pdf", dpi=200)
+
+fig3 = plt.figure()
+for i in temp:
+    val = []
+    for n in range(len(N)):
+        val.append(C(e[n], i, N[n]))
+    plt.plot(N, val, "-x", label=r"$T=%.1f$" % i)
+plt.plot(N, np.ones_like(N) *
+         (3/(13 * temp[-1]**2)), "--", label=r"High $T$ limit")
+plt.xlabel(r"$N$")
+plt.ylabel(r"$C$")
+plt.grid()
+plt.legend()
+plt.savefig("specific_heat.pdf", dpi=200)
