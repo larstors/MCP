@@ -280,7 +280,7 @@ int main(){
             }
 
             else if (q[i] > 1){
-                int m = floor(q[i] + position_shift(rng));
+                int m = floor(q[i] + position_shift(rng)) ;
                 for (int j = 0; j < m; j++){
                     for (int n = 0; n < 6; n++){
                         new_pos.push_back(x[6*i + n]);
