@@ -5,6 +5,32 @@ import scipy.linalg as sc
 from numba import njit, jit
 
 
+def Hamiltonian(N: int):
+    """Function to calculate the hamiltonian given a specific spin chain length N
+
+    Args:
+        N (int): number of spins in chain
+
+    Returns:
+        np.ndarray: hamiltonian of the system
+    """
+
+    H = np.zeros((2**N, 2**N))
+
+    for a in range(2**N):
+        for lam in range(0, N - 1):
+            j = (lam + 1) % N
+            bit = format(a, "#0%db" % (N + 2))[2:]
+            if bit[lam] == bit[j]:
+                H[a, a] += 1 / 4
+            else:
+                H[a, a] -= 1 / 4
+                b = np.bitwise_xor(a, 2 ** (N - 1 - lam) + 2 ** (N - 1 - j))
+                H[a, b] = 1 / 2
+
+    return H
+
+
 def Nup(a: int, N: int):
     a = format(a, "#0%db" % (N + 2))[2:]
     m = 0
@@ -45,7 +71,7 @@ def timing(N):
     start = time.time()
     for i in range(N+1):
         H = block(N, i)
-        emin = lanczos(H, len(H), len(H))
+        emin = lanczos(H, len(H), len(H))[0]
         if emin < minE:
             minE = emin
     end = time.time()
@@ -63,6 +89,7 @@ def lanczos(H: np.ndarray, lam: int, M: int):
     a = []
     b = []
     N = []
+
     v = np.zeros((lam+1, M))
     v[0, :] = np.zeros(M)
     v[0, 0] = 1
@@ -87,9 +114,9 @@ def lanczos(H: np.ndarray, lam: int, M: int):
         N.append(Nii)
         v[i+1, :] = w - a[-1] * v[i, :] - b[-1] * v[i-1, :]
 
-        h[i, i-1] = np.sqrt(b[i-1])
-        h[i-1, i] = np.sqrt(b[i-1])
-        h[i, i] = a[i]
+        h[i, i-1] = np.sqrt(b[-1])
+        h[i-1, i] = np.sqrt(b[-1])
+        h[i, i] = a[-1]
 
         eigE, eigv = np.linalg.eig(h)
 
@@ -98,13 +125,80 @@ def lanczos(H: np.ndarray, lam: int, M: int):
             break
         else:
             e0 = min(eigE)
+    # print(e0)
+    # print(b)
+    if M > 4:
+        return e0, eigE[:4]
+    else:
+        return e0, 0
 
-        # print(b)
 
-    return e0
+def timing2(N):
+    minE = 0
+
+    start = time.time()
+    for i in range(N+1):
+        H = block(N, i)
+        l2, u2 = np.linalg.eig(H)
+        if min(l2) < minE:
+            minE = min(l2)
+    end = time.time()
+    return minE, end-start
 
 
 for i in range(2, 7):
     t = timing(i)
-    print("For n = %d get E0 = %4.f taking a total of t = %g seconds" %
+    print("For n = %d get E0 = %.4f taking a total of t = %g seconds" %
           (i, t[0], t[1]))
+
+diag_time_lan = []
+diag_time_no = []
+diag_time = []
+N = np.array([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+for i in N:
+    diag_time_lan.append(timing(i)[1])
+    diag_time.append(timing2(i)[1])
+    start = time.time()
+    H2 = Hamiltonian(i)
+    l2, u2 = np.linalg.eig(H2)
+    end = time.time()
+    diag_time_no.append(end - start)
+
+f = plt.figure()
+plt.plot(N, diag_time, label="Block diag.")
+plt.plot(N, diag_time_lan, label="Block diag. with Lanczos")
+plt.plot(N, diag_time_no, label="No block diag.")
+plt.xlabel(r"$N$")
+plt.ylabel("Diagonalisation Time in [s]")
+plt.legend()
+plt.grid()
+plt.yscale("log")
+plt.savefig("Diagonalisation_time_block_lanc.pdf", dpi=200)
+
+
+B = block(10, 5)
+M = len(B)
+lam = []
+E0 = []
+E1 = []
+E2 = []
+E3 = []
+
+for i in range(5, M):
+    E = lanczos(B, i, M)[1]
+    lam.append(i)
+    E0.append(E[0])
+    E1.append(E[1])
+    E2.append(E[2])
+    E3.append(E[3])
+
+f2 = plt.figure()
+plt.plot(lam, E0, label=r"$E_0$")
+plt.plot(lam, E1, label=r"$E_1$")
+plt.plot(lam, E2, label=r"$E_2$")
+plt.plot(lam, E3, label=r"$E_3$")
+plt.legend()
+plt.grid()
+plt.xlabel(r"$\Lambda$")
+plt.ylabel(r"Energies")
+plt.savefig("Lanczos_please.pdf", dpi=200)
