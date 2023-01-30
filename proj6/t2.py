@@ -43,7 +43,7 @@ def mz(a: np.ndarray, N: int):
         int: magnetisation
     """
     for c in range(len(a)):
-        if np.abs(c) > 1e-3:
+        if np.abs(a[c]) > 1e-3:
             c = format(c, "#0%db" % (N + 2))[2:]
             m = 0
             for i in c:
